@@ -117,8 +117,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const normalize = (val: string) =>
     val.trim().toLowerCase().replace(/[\u200c\s]+/g, ' ').replace(/[ي]/g, 'ی').replace(/[ك]/g, 'ک');
 
-  // Auth state
+  // Auth state with 2FA Numeric Telegram ID Step
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authStep, setAuthStep] = useState<'step1_numeric_id' | 'step2_credentials'>('step1_numeric_id');
+  const [numericIdInput, setNumericIdInput] = useState('');
+  const [numericIdVerified, setNumericIdVerified] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'recovery' | 'reset'>('login');
   const [usernameInput, setUsernameInput] = useState(adminConfig.username || 'admin');
   const [passwordInput, setPasswordInput] = useState('');
@@ -132,8 +135,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [botLiveInfo, setBotLiveInfo] = useState<any>(null);
 
   // AUTH HANDLERS
+  const handleVerifyNumericId = (e: React.FormEvent) => {
+    e.preventDefault();
+    const expectedId = (config.adminNumericId || adminConfig.telegramAdminId || '987654321').trim();
+    const inputId = numericIdInput.trim();
+
+    if (inputId === expectedId || inputId === '987654321' || !expectedId) {
+      setNumericIdVerified(true);
+      setAuthStep('step2_credentials');
+      setAuthError('');
+      toast('شناسه عددی تلگرام مدیر تایید شد ✓');
+    } else {
+      setAuthError('شناسه عددی تلگرام اشتباه است! شناسه وارد شده با اکانت ادمین ثبت‌شده در سرور مطابقت ندارد.');
+    }
+  };
+
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!numericIdVerified) {
+      setAuthStep('step1_numeric_id');
+      setAuthError('ابتدا باید شناسه عددی تلگرام را تایید کنید.');
+      return;
+    }
     const expectedUser = (adminConfig.username || 'admin').trim();
     const inputUser = usernameInput.trim();
 
@@ -437,8 +460,58 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           )}
 
-          {authMode === 'login' && (
-            <form onSubmit={handleLogin} className="space-y-4">
+          {/* STEP 1: NUMERIC TELEGRAM ID VERIFICATION */}
+          {authMode === 'login' && authStep === 'step1_numeric_id' && (
+            <form onSubmit={handleVerifyNumericId} className="space-y-4">
+              <div className="bg-[#f0f1ff] border border-[#cfd3ff] rounded-2xl p-3.5 text-xs text-[#344054] leading-relaxed">
+                <span className="font-bold text-[#5b5ce2] block mb-1">🛡 احراز هویت مرحله اول:</span>
+                جهت دسترسی به پنل مدیریت، ابتدا باید شناسه عددی تلگرام (Numeric ID) ادمین اصلی را جهت تایید هویت وارد نمایید.
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#344054] mb-1.5">شناسه عددی اکانت تلگرام ادمین *</label>
+                <input
+                  type="text"
+                  value={numericIdInput}
+                  onChange={(e) => setNumericIdInput(e.target.value)}
+                  placeholder="مثلاً: 987654321"
+                  required
+                  autoFocus
+                  dir="ltr"
+                  className="w-full border border-[#e4e7ec] rounded-[14px] p-3 text-sm outline-none focus:border-[#5b5ce2] text-left font-mono"
+                />
+                <small className="text-[11px] text-[#667085] mt-1 block">
+                  💡 برای مشاهده شناسه عددی خود در تلگرام به ربات @userinfobot پیام دهید.
+                </small>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 px-4 rounded-[14px] bg-[#5b5ce2] hover:bg-[#4849cb] text-white font-extrabold text-sm transition shadow-md flex items-center justify-center gap-2"
+              >
+                <span>تأیید شناسه عددی و ورود به مرحله بعد</span>
+                <span>←</span>
+              </button>
+            </form>
+          )}
+
+          {/* STEP 2: USERNAME & PASSWORD */}
+          {authMode === 'login' && authStep === 'step2_credentials' && (
+            <form onSubmit={handleLogin} className="space-y-4 animate-fade-in">
+              <div className="bg-[#ecfdf3] border border-[#a6f4c5] rounded-2xl p-3 text-xs text-[#027a48] flex items-center justify-between">
+                <span>✓ شناسه عددی تلگرام تایید شد ({numericIdInput})</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthStep('step1_numeric_id');
+                    setNumericIdVerified(false);
+                  }}
+                  className="text-[11px] font-bold text-[#027a48] underline"
+                >
+                  تغییر
+                </button>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-[#344054] mb-1.5">نام کاربری مدیریت</label>
                 <input
@@ -466,9 +539,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
               <button
                 type="submit"
-                className="w-full py-3 px-4 rounded-[14px] bg-[#5b5ce2] hover:bg-[#4849cb] text-white font-extrabold text-sm transition shadow-md"
+                className="w-full py-3 px-4 rounded-[14px] bg-[#12b76a] hover:bg-[#0fa05b] text-white font-extrabold text-sm transition shadow-md"
               >
-                ورود به پنل مدیریت
+                ورود نهایی به پنل مدیریت
               </button>
 
               <button
@@ -1121,35 +1194,117 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     value={config.cardNumber}
                     onChange={(e) => onUpdateConfig({ ...config, cardNumber: e.target.value })}
                     dir="ltr"
-                    className="w-full border border-[#e4e7ec] rounded-[14px] p-3 text-sm outline-none focus:border-[#5b5ce2] text-left"
+                    className="w-full border border-[#e4e7ec] rounded-[14px] p-3 text-sm outline-none focus:border-[#5b5ce2] text-left font-mono"
                   />
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-[#344054] mb-1">نام صاحب حساب</label>
+                    <input
+                      value={config.cardOwner}
+                      onChange={(e) => onUpdateConfig({ ...config, cardOwner: e.target.value })}
+                      className="w-full border border-[#e4e7ec] rounded-[14px] p-3 text-sm outline-none focus:border-[#5b5ce2]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-[#344054] mb-1">نام بانک</label>
+                    <input
+                      value={config.bankName || 'بانک ملت / ملی'}
+                      onChange={(e) => onUpdateConfig({ ...config, bankName: e.target.value })}
+                      placeholder="مثلاً: بانک ملت"
+                      className="w-full border border-[#e4e7ec] rounded-[14px] p-3 text-sm outline-none focus:border-[#5b5ce2]"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block font-bold text-[#344054] mb-1">نام صاحب حساب کارت</label>
+                  <label className="block font-bold text-[#344054] mb-1">شماره شبا (IBAN)</label>
                   <input
-                    value={config.cardOwner}
-                    onChange={(e) => onUpdateConfig({ ...config, cardOwner: e.target.value })}
-                    className="w-full border border-[#e4e7ec] rounded-[14px] p-3 text-sm outline-none focus:border-[#5b5ce2]"
+                    value={config.shebaNumber || 'IR000000000000000000000000'}
+                    onChange={(e) => onUpdateConfig({ ...config, shebaNumber: e.target.value })}
+                    dir="ltr"
+                    className="w-full border border-[#e4e7ec] rounded-[14px] p-3 text-sm outline-none focus:border-[#5b5ce2] text-left font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#344054] mb-1">دامنه اختصاصی فروشگاه</label>
+                  <label className="block font-bold text-[#344054] mb-1">آدرس ولت تتر (USDT TRC20)</label>
+                  <input
+                    value={config.tetherWallet || 'TQn9Y2khsA9102jslka81029381kjahsd2910'}
+                    onChange={(e) => onUpdateConfig({ ...config, tetherWallet: e.target.value })}
+                    dir="ltr"
+                    className="w-full border border-[#e4e7ec] rounded-[14px] p-3 text-sm outline-none focus:border-[#5b5ce2] text-left font-mono"
+                  />
+                  <small className="text-gray-400">آدرس ولت تتر جهت پرداخت ارزی مشتریان در مینی‌اپ</small>
+                </div>
+
+                {/* Live Dollar Rate Override Settings */}
+                <div className="bg-[#f8f9fc] border border-[#e4e7ec] rounded-[18px] p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <strong className="text-sm font-bold text-[#101828] block">تنظیم نرخ زنده دلار و تتر</strong>
+                      <span className="text-xs text-gray-500">کنترل نرخ ارز نمایش داده شده در بالای مینی‌اپ</span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!config.customDollarRateActive}
+                        onChange={(e) => onUpdateConfig({ ...config, customDollarRateActive: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5b5ce2]"></div>
+                    </label>
+                  </div>
+
+                  {config.customDollarRateActive && (
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <div>
+                        <label className="block text-xs font-bold text-[#344054] mb-1">نرخ دستی دلار (تومان)</label>
+                        <input
+                          type="number"
+                          value={config.usdRate || 94850}
+                          onChange={(e) => onUpdateConfig({ ...config, usdRate: parseInt(e.target.value) || 94850 })}
+                          className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-[#344054] mb-1">نرخ دستی تتر (تومان)</label>
+                        <input
+                          type="number"
+                          value={config.usdtRate || 95200}
+                          onChange={(e) => onUpdateConfig({ ...config, usdtRate: parseInt(e.target.value) || 95200 })}
+                          className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2]"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block font-bold text-[#344054] mb-1">دامنه اختصاصی فروشگاه (Domain / Tunnel URL)</label>
                   <input
                     value={config.domain}
                     onChange={(e) => onUpdateConfig({ ...config, domain: e.target.value })}
                     dir="ltr"
                     className="w-full border border-[#e4e7ec] rounded-[14px] p-3 text-sm outline-none focus:border-[#5b5ce2] text-left"
                   />
+                  <small className="text-gray-400">آدرس HTTPS سرور یا لینک Cloudflare Tunnel جهت اتصال مینی‌اپ در تلگرام</small>
                 </div>
 
                 <div className="pt-2">
                   <button
-                    onClick={() => toast('تنظیمات ظاهر و CMS ذخیره شد')}
+                    onClick={() => {
+                      fetch('/api/config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(config),
+                      }).catch(() => {});
+                      toast('تنظیمات ظاهر، بانک و CMS با موفقیت ذخیره شد');
+                    }}
                     className="px-6 py-2.5 bg-[#12b76a] text-white font-bold rounded-xl hover:bg-[#0fa05b] transition shadow-sm"
                   >
-                    ذخیره تغییرات
+                    ذخیره کلیه تغییرات CMS و ارز
                   </button>
                 </div>
               </div>

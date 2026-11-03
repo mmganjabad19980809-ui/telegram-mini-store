@@ -22,7 +22,18 @@ import {
   HelpCircle,
   ExternalLink,
   Sparkles,
+  TrendingUp,
+  User,
+  Wallet,
+  Phone,
+  ShieldCheck,
+  FileText,
+  RefreshCw,
+  Calculator,
+  Edit3,
+  MessageCircle,
 } from 'lucide-react';
+import { CustomerProfile } from '../types/store';
 
 interface CustomerStoreProps {
   config: StoreConfig;
@@ -46,12 +57,114 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
   onCreateTicket,
 }) => {
   // Navigation inside the store
-  const [view, setView] = useState<'home' | 'product' | 'checkout' | 'orders' | 'support' | 'success'>('home');
+  const [view, setView] = useState<'home' | 'product' | 'checkout' | 'orders' | 'profile' | 'support' | 'success'>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedCard, setCopiedCard] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
+
+  // Live Currency Exchange Rates State (from public API or admin config)
+  const [liveRates, setLiveRates] = useState<{
+    usdPrice: number;
+    usdtPrice: number;
+    change24h: string;
+    high24h: number;
+    low24h: number;
+    source: string;
+    lastUpdate: string;
+  }>({
+    usdPrice: config.usdRate || 94850,
+    usdtPrice: config.usdtRate || 95200,
+    change24h: '+1.2%',
+    high24h: (config.usdRate || 94850) + 500,
+    low24h: (config.usdRate || 94850) - 400,
+    source: 'سامانه لحظه‌ای ارز آزاد و تتر',
+    lastUpdate: new Date().toLocaleTimeString('fa-IR'),
+  });
+  const [isRefreshingRates, setIsRefreshingRates] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [calcAmount, setCalcAmount] = useState('10');
+  const [calcCurrency, setCalcCurrency] = useState<'usd' | 'toman'>('usd');
+
+  // Customer Profile State (with Telegram WebApp sync)
+  const [customerProfile, setCustomerProfile] = useState<CustomerProfile>(() => {
+    // Try to auto-read from Telegram WebApp SDK if loaded inside Telegram
+    const tgUser = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp?.initDataUnsafe?.user : null;
+    return {
+      id: tgUser?.id ? String(tgUser.id) : (config.adminNumericId ? '689234812' : '987654321'),
+      name: tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') : 'کاربر تلگرام',
+      username: tgUser?.username ? `@${tgUser.username}` : '@customer',
+      phone: '۰۹۱۲۳۴۵۶۷۸۹',
+      bio: 'علاقه‌مند به خدمات دیجیتال و اینترنت آزاد',
+      photoUrl: tgUser?.photo_url || '',
+      vipTier: 'طلایی',
+      walletBalanceToman: 75000,
+      walletBalanceUsdt: 8.5,
+      joinedDate: '۱۴۰۴/۱۰/۱۲',
+    };
+  });
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editName, setEditName] = useState(customerProfile.name);
+  const [editPhone, setEditPhone] = useState(customerProfile.phone);
+  const [editBio, setEditBio] = useState(customerProfile.bio);
+  const [profileSubTab, setProfileSubTab] = useState<'orders' | 'info' | 'wallet'>('orders');
+
+  // Fetch Live Rates
+  const refreshRates = async () => {
+    setIsRefreshingRates(true);
+    try {
+      const res = await fetch('/api/rates/usd');
+      if (res.ok) {
+        const data = await res.json();
+        setLiveRates({
+          ...data,
+          lastUpdate: new Date().toLocaleTimeString('fa-IR'),
+        });
+        showToast('نرخ لحظه‌ای ارز با موفقیت به‌روزرسانی شد');
+      }
+    } catch (_) {
+      // simulated fluctuation
+      const base = 94850 + Math.floor(Math.sin(Date.now() / 30000) * 150);
+      setLiveRates((prev) => ({
+        ...prev,
+        usdPrice: base,
+        usdtPrice: base + 350,
+        lastUpdate: new Date().toLocaleTimeString('fa-IR'),
+      }));
+    } finally {
+      setTimeout(() => setIsRefreshingRates(false), 600);
+    }
+  };
+
+  React.useEffect(() => {
+    refreshRates();
+    const interval = setInterval(refreshRates, 120000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Save Customer Profile
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const updated = {
+      ...customerProfile,
+      name: editName.trim() || customerProfile.name,
+      phone: editPhone.trim() || customerProfile.phone,
+      bio: editBio.trim() || customerProfile.bio,
+    };
+    setCustomerProfile(updated);
+    setIsEditingProfile(false);
+    showToast('مشخصات پروفایل با موفقیت ذخیره شد');
+
+    try {
+      await fetch('/api/customer/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
+      });
+    } catch (_) {}
+  };
 
   // Checkout Form State
   const [custName, setCustName] = useState('');
@@ -426,11 +539,18 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setView('orders')}
-                className="w-11 h-11 rounded-[14px] bg-white border border-[#e4e7ec] flex items-center justify-center text-lg hover:bg-[#f5f6ff] transition shadow-sm"
-                title="سفارش‌های من"
+                onClick={() => setView('profile')}
+                className="h-11 px-3 rounded-[14px] bg-white border border-[#e4e7ec] flex items-center gap-2 hover:bg-[#f5f6ff] transition shadow-sm"
+                title="پروفایل کاربری"
               >
-                🧾
+                {customerProfile.photoUrl ? (
+                  <img src={customerProfile.photoUrl} alt="Avatar" className="w-6 h-6 rounded-full object-cover" />
+                ) : (
+                  <span className="w-6 h-6 rounded-full bg-[#eef0ff] text-[#5b5ce2] flex items-center justify-center text-xs font-bold">
+                    👤
+                  </span>
+                )}
+                <span className="text-xs font-extrabold text-[#344054] hidden sm:inline">{customerProfile.name}</span>
               </button>
               <button
                 onClick={() => setView('support')}
@@ -448,6 +568,82 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
               </button>
             </div>
           </header>
+
+          {/* LIVE DOLLAR & TETHER RATES TICKER */}
+          <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] border border-[#334155] rounded-[22px] p-3.5 sm:p-4 mb-5 text-white shadow-lg relative overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <span className="text-xs font-extrabold text-emerald-400 flex items-center gap-1">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span>نرخ زنده ارز و تتر:</span>
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3 text-xs">
+                <div className="flex items-center gap-1.5 bg-[#ffffff10] px-3 py-1.5 rounded-xl border border-white/10">
+                  <span className="text-emerald-400 font-bold">💵 دلار آزاد:</span>
+                  <b className="text-sm font-black text-white">{liveRates.usdPrice.toLocaleString('fa-IR')}</b>
+                  <span className="text-[10px] text-gray-300">تومان</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-[#ffffff10] px-3 py-1.5 rounded-xl border border-white/10 hidden sm:flex">
+                  <span className="text-cyan-400 font-bold">🪙 تتر (USDT):</span>
+                  <b className="text-sm font-black text-white">{liveRates.usdtPrice.toLocaleString('fa-IR')}</b>
+                  <span className="text-[10px] text-gray-300">تومان</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowCalculator(!showCalculator)}
+                  className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5"
+                  title="ماشین‌حساب تبدیل ارز"
+                >
+                  <Calculator className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="hidden sm:inline">محاسبه‌گر</span>
+                </button>
+                <button
+                  onClick={refreshRates}
+                  disabled={isRefreshingRates}
+                  className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs transition"
+                  title="به‌روزرسانی قیمت"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingRates ? 'animate-spin text-emerald-400' : ''}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Currency Converter Dropdown */}
+            {showCalculator && (
+              <div className="mt-3 pt-3 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-center text-xs animate-fade-in">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-300">مبلغ:</span>
+                  <input
+                    type="number"
+                    value={calcAmount}
+                    onChange={(e) => setCalcAmount(e.target.value)}
+                    className="w-24 bg-black/40 border border-white/20 rounded-lg px-2 py-1 text-white text-center font-bold"
+                  />
+                  <select
+                    value={calcCurrency}
+                    onChange={(e: any) => setCalcCurrency(e.target.value)}
+                    className="bg-black/40 border border-white/20 rounded-lg px-2 py-1 text-white"
+                  >
+                    <option value="usd">دلار ($)</option>
+                    <option value="toman">تومان</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-2 bg-emerald-500/20 border border-emerald-500/30 rounded-xl p-2 text-center text-emerald-300 font-bold">
+                  {calcCurrency === 'usd'
+                    ? `${(parseFloat(calcAmount || '0') * liveRates.usdPrice).toLocaleString('fa-IR')} تومان معادل ${calcAmount} دلار`
+                    : `$${(parseFloat(calcAmount || '0') / (liveRates.usdPrice || 1)).toFixed(2)} دلار معادل ${parseFloat(calcAmount || '0').toLocaleString('fa-IR')} تومان`}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Hero Banner matching store_v18.html */}
           <section className="hero-gradient text-white rounded-[28px] p-6 sm:p-8 shadow-[0_12px_35px_rgba(16,24,40,0.07)] mb-6">
@@ -913,8 +1109,8 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
         </div>
       )}
 
-      {/* VIEW: ORDERS TRACKING */}
-      {view === 'orders' && (
+      {/* VIEW: CUSTOMER PROFILE & ORDERS */}
+      {(view === 'profile' || view === 'orders') && (
         <div className="animate-fade-in max-w-2xl mx-auto">
           <button
             onClick={() => setView('home')}
@@ -923,71 +1119,335 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
             <span>← بازگشت به فروشگاه</span>
           </button>
 
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl sm:text-2xl font-black text-[#101828]">سفارش‌های من</h2>
-            <span className="text-xs text-[#667085]">{orders.length} سفارش ثبت شده</span>
+          {/* Customer Profile Header Card */}
+          <div className="bg-white border border-[#e4e7ec] rounded-[24px] p-5 sm:p-7 shadow-[0_12px_35px_rgba(16,24,40,0.06)] mb-5">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-5 pb-5 border-b border-[#f2f4f7]">
+              {/* Avatar */}
+              <div className="relative">
+                {customerProfile.photoUrl ? (
+                  <img
+                    src={customerProfile.photoUrl}
+                    alt={customerProfile.name}
+                    className="w-20 h-20 rounded-[22px] object-cover border-2 border-[#5b5ce2] shadow-md"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-[22px] bg-gradient-to-br from-[#5b5ce2] to-[#7c5cff] text-white flex items-center justify-center text-3xl font-black shadow-md shadow-[#5b5ce233]">
+                    {customerProfile.name ? customerProfile.name.slice(0, 1) : '👤'}
+                  </div>
+                )}
+                <span className="absolute -bottom-1 -right-1 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border-2 border-white">
+                  آنلاین
+                </span>
+              </div>
+
+              {/* Info */}
+              <div className="text-center sm:text-right flex-1">
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
+                  <h2 className="text-lg sm:text-xl font-black text-[#101828] m-0">{customerProfile.name}</h2>
+                  <span className="bg-[#f0f1ff] text-[#5b5ce2] text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border border-[#cfd3ff]">
+                    {customerProfile.vipTier}
+                  </span>
+                </div>
+
+                <div className="text-xs text-[#667085] flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-2">
+                  <span className="font-mono text-[#5b5ce2] font-bold">{customerProfile.username}</span>
+                  <span>•</span>
+                  <span>عضویت: {customerProfile.joinedDate}</span>
+                </div>
+
+                {/* Numeric Telegram ID pill with copy button */}
+                <div className="inline-flex items-center gap-2 bg-[#f8f9fc] border border-[#e4e7ec] rounded-xl px-3 py-1 text-xs">
+                  <span className="text-[#667085]">شناسه عددی تلگرام:</span>
+                  <span className="font-mono font-bold text-[#101828]">{customerProfile.id}</span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(customerProfile.id);
+                      setCopiedId(true);
+                      showToast('شناسه عددی تلگرام کپی شد');
+                      setTimeout(() => setCopiedId(false), 2000);
+                    }}
+                    className="text-[#5b5ce2] hover:text-[#4344b5] transition ml-1"
+                    title="کپی شناسه عددی"
+                  >
+                    {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Edit Profile Toggle Button */}
+              <button
+                onClick={() => setIsEditingProfile(!isEditingProfile)}
+                className="px-3.5 py-2 rounded-xl border border-[#e4e7ec] text-xs font-bold text-[#344054] hover:bg-[#f8f9fc] transition flex items-center gap-1.5"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-[#5b5ce2]" />
+                <span>{isEditingProfile ? 'انصراف' : 'ویرایش مشخصات'}</span>
+              </button>
+            </div>
+
+            {/* Quick Wallet & Stats row */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-4">
+              <div className="bg-[#f8f9fc] border border-[#e4e7ec] rounded-2xl p-3 text-center sm:text-right">
+                <span className="text-[11px] text-[#667085] block mb-0.5">موجودی کیف پول</span>
+                <b className="text-sm font-black text-[#5b5ce2] block">{formatMoney(customerProfile.walletBalanceToman)}</b>
+              </div>
+              <div className="bg-[#f8f9fc] border border-[#e4e7ec] rounded-2xl p-3 text-center sm:text-right">
+                <span className="text-[11px] text-[#667085] block mb-0.5">اعتبار دلاری (USDT)</span>
+                <b className="text-sm font-black text-cyan-600 block">{customerProfile.walletBalanceUsdt} USDT</b>
+              </div>
+              <div className="bg-[#f8f9fc] border border-[#e4e7ec] rounded-2xl p-3 text-center sm:text-right col-span-2 sm:col-span-1">
+                <span className="text-[11px] text-[#667085] block mb-0.5">تعداد سفارش‌ها</span>
+                <b className="text-sm font-black text-[#101828] block">{orders.length} سفارش ثبت شده</b>
+              </div>
+            </div>
+
+            {/* Edit Profile Form Popup/Section */}
+            {isEditingProfile && (
+              <form onSubmit={handleSaveProfile} className="mt-4 pt-4 border-t border-[#f2f4f7] grid gap-3 animate-fade-in">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#344054] mb-1">نام کامل</label>
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="نام و نام خانوادگی"
+                      className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#344054] mb-1">شماره تماس (جهت اطلاع‌رسانی سفارش)</label>
+                    <input
+                      value={editPhone}
+                      onChange={(e) => setEditPhone(e.target.value)}
+                      placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                      dir="ltr"
+                      className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2] text-left"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#344054] mb-1">بیوگرافی / یادداشت شخصی</label>
+                  <input
+                    value={editBio}
+                    onChange={(e) => setEditBio(e.target.value)}
+                    placeholder="یک متن کوتاه درباره خودتان..."
+                    className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2]"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingProfile(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100"
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-xl bg-[#5b5ce2] text-white text-xs font-bold hover:bg-[#4849cb] transition"
+                  >
+                    ذخیره تغییرات
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
 
-          {orders.length === 0 ? (
-            <div className="bg-white border border-[#e4e7ec] rounded-[22px] p-8 text-center text-[#667085]">
-              شما هنوز سفارشی ثبت نکرده‌اید.
-            </div>
-          ) : (
-            <div className="grid gap-3">
-              {orders.map((o) => {
-                const isCompleted = o.status === 'تکمیل شده';
-                const isProcessing = o.status === 'در حال انجام' || o.status === 'دریافت شد';
+          {/* Subtabs inside Profile */}
+          <div className="flex gap-2 mb-4 bg-white p-1.5 rounded-[18px] border border-[#e4e7ec] shadow-sm">
+            <button
+              onClick={() => setProfileSubTab('orders')}
+              className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${
+                profileSubTab === 'orders'
+                  ? 'bg-[#5b5ce2] text-white shadow-sm'
+                  : 'text-[#667085] hover:text-[#101828]'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              <span>سفارش‌های من ({orders.length})</span>
+            </button>
+            <button
+              onClick={() => setProfileSubTab('info')}
+              className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${
+                profileSubTab === 'info'
+                  ? 'bg-[#5b5ce2] text-white shadow-sm'
+                  : 'text-[#667085] hover:text-[#101828]'
+              }`}
+            >
+              <User className="w-4 h-4" />
+              <span>اطلاعات کاربری</span>
+            </button>
+            <button
+              onClick={() => setProfileSubTab('wallet')}
+              className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${
+                profileSubTab === 'wallet'
+                  ? 'bg-[#5b5ce2] text-white shadow-sm'
+                  : 'text-[#667085] hover:text-[#101828]'
+              }`}
+            >
+              <Wallet className="w-4 h-4" />
+              <span>کیف پول</span>
+            </button>
+          </div>
 
-                return (
-                  <div
-                    key={o.id}
-                    className="bg-white border border-[#e4e7ec] rounded-[20px] p-4 sm:p-5 shadow-sm"
+          {/* SUBTAB 1: ORDERS LIST */}
+          {profileSubTab === 'orders' && (
+            <div>
+              {orders.length === 0 ? (
+                <div className="bg-white border border-[#e4e7ec] rounded-[22px] p-8 text-center text-[#667085]">
+                  <p className="mb-3">هنوز سفارشی برای این حساب ثبت نشده است.</p>
+                  <button
+                    onClick={() => setView('home')}
+                    className="px-5 py-2.5 rounded-xl bg-[#5b5ce2] text-white text-xs font-bold hover:bg-[#4849cb] transition"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <b className="text-sm sm:text-base font-extrabold text-[#101828]">{o.product}</b>
-                      <span
-                        className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
-                          isCompleted
-                            ? 'bg-[#ecfdf3] text-[#067647]'
-                            : isProcessing
-                            ? 'bg-[#e0f2fe] text-[#0369a1]'
-                            : 'bg-[#fffaeb] text-[#b54708]'
-                        }`}
+                    شروع خرید از فروشگاه
+                  </button>
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  {orders.map((o) => {
+                    const isCompleted = o.status === 'تکمیل شده';
+                    const isProcessing = o.status === 'در حال انجام' || o.status === 'دریافت شد';
+
+                    return (
+                      <div
+                        key={o.id}
+                        className="bg-white border border-[#e4e7ec] rounded-[22px] p-4 sm:p-5 shadow-sm hover:border-[#cfd3ff] transition"
                       >
-                        {o.status}
-                      </span>
-                    </div>
-
-                    <div className="text-xs text-[#667085] flex flex-wrap gap-x-4 gap-y-1 mb-2">
-                      <span>کد: {o.id}</span>
-                      <span>پلن: {o.plan}</span>
-                      <span>تاریخ: {o.createdAt}</span>
-                    </div>
-
-                    <div className="text-sm font-black text-[#5b5ce2] mb-3">
-                      {formatMoney(o.amount)}
-                    </div>
-
-                    {/* Delivery / Message box if admin provided details */}
-                    {o.delivery && (
-                      <div className="mt-2 p-3.5 bg-[#ecfdf3] border border-[#a6f4c5] rounded-xl text-xs sm:text-sm">
-                        <strong className="block text-[#027a48] font-bold mb-1">
-                          ✓ اطلاعات و لینک تحویل سفارش:
-                        </strong>
-                        <div className="bg-white p-2.5 rounded-lg border border-[#a6f4c5] font-mono text-left text-xs break-all text-[#101828]">
-                          {o.delivery}
+                        <div className="flex items-center justify-between mb-2">
+                          <b className="text-sm sm:text-base font-extrabold text-[#101828]">{o.product}</b>
+                          <span
+                            className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
+                              isCompleted
+                                ? 'bg-[#ecfdf3] text-[#067647]'
+                                : isProcessing
+                                ? 'bg-[#e0f2fe] text-[#0369a1]'
+                                : 'bg-[#fffaeb] text-[#b54708]'
+                            }`}
+                          >
+                            {o.status}
+                          </span>
                         </div>
-                      </div>
-                    )}
 
-                    {o.message && (
-                      <div className="mt-2 p-3 bg-[#f8f9fc] border border-[#e4e7ec] rounded-xl text-xs text-[#344054]">
-                        <b>پیام پشتیبانی:</b> {o.message}
+                        <div className="text-xs text-[#667085] flex flex-wrap gap-x-4 gap-y-1 mb-2">
+                          <span>کد پیگیری: <b className="text-[#101828]">{o.id}</b></span>
+                          <span>پلن: {o.plan}</span>
+                          <span>تاریخ: {o.createdAt}</span>
+                        </div>
+
+                        <div className="text-sm font-black text-[#5b5ce2] mb-3">
+                          {formatMoney(o.amount)}
+                        </div>
+
+                        {/* Delivery Payload box with Copy */}
+                        {o.delivery && (
+                          <div className="mt-2 p-3.5 bg-[#ecfdf3] border border-[#a6f4c5] rounded-xl text-xs sm:text-sm">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <strong className="text-[#027a48] font-bold">
+                                ✓ اطلاعات تحویل داده شده (کانفیگ / اکانت):
+                              </strong>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(o.delivery || '');
+                                  showToast('اطلاعات تحویل در حافظه کپی شد');
+                                }}
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-[#027a48] bg-white px-2 py-0.5 rounded-md border border-[#a6f4c5] hover:bg-[#ecfdf3]"
+                              >
+                                <Copy className="w-3 h-3" />
+                                <span>کپی</span>
+                              </button>
+                            </div>
+                            <div className="bg-white p-2.5 rounded-lg border border-[#a6f4c5] font-mono text-left text-xs break-all text-[#101828]">
+                              {o.delivery}
+                            </div>
+                          </div>
+                        )}
+
+                        {o.message && (
+                          <div className="mt-2 p-3 bg-[#f8f9fc] border border-[#e4e7ec] rounded-xl text-xs text-[#344054]">
+                            <b>پیام مدیریت:</b> {o.message}
+                          </div>
+                        )}
+
+                        {o.receipt && (
+                          <div className="mt-2 text-left">
+                            <span className="text-[11px] text-[#667085]">رسید پرداخت آپلود شده: </span>
+                            <a
+                              href={o.receipt}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-[#5b5ce2] font-bold hover:underline"
+                            >
+                              مشاهده رسید
+                            </a>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* SUBTAB 2: ACCOUNT INFO */}
+          {profileSubTab === 'info' && (
+            <div className="bg-white border border-[#e4e7ec] rounded-[22px] p-5 shadow-sm space-y-3.5 text-xs sm:text-sm">
+              <h3 className="text-base font-bold text-[#101828] mb-3">مشخصات هویتی و امنیتی</h3>
+
+              <div className="flex justify-between py-2 border-b border-[#f2f4f7]">
+                <span className="text-[#667085]">نام و نام خانوادگی:</span>
+                <b className="text-[#101828]">{customerProfile.name}</b>
+              </div>
+
+              <div className="flex justify-between py-2 border-b border-[#f2f4f7]">
+                <span className="text-[#667085]">آیدی تلگرام:</span>
+                <b className="text-[#5b5ce2] font-mono">{customerProfile.username}</b>
+              </div>
+
+              <div className="flex justify-between py-2 border-b border-[#f2f4f7]">
+                <span className="text-[#667085]">شناسه عددی (Numeric ID):</span>
+                <b className="text-[#101828] font-mono">{customerProfile.id}</b>
+              </div>
+
+              <div className="flex justify-between py-2 border-b border-[#f2f4f7]">
+                <span className="text-[#667085]">شماره تماس تایید شده:</span>
+                <b className="text-[#101828]">{customerProfile.phone || 'ثبت نشده (جهت ثبت دکمه ویرایش را بزنید)'}</b>
+              </div>
+
+              <div className="flex justify-between py-2 border-b border-[#f2f4f7]">
+                <span className="text-[#667085]">سطح وفاداری مشتری:</span>
+                <b className="text-[#5b5ce2]">{customerProfile.vipTier}</b>
+              </div>
+
+              <div className="flex justify-between py-2">
+                <span className="text-[#667085]">بیوگرافی / یادداشت:</span>
+                <span className="text-[#344054] max-w-xs text-left">{customerProfile.bio}</span>
+              </div>
+            </div>
+          )}
+
+          {/* SUBTAB 3: WALLET & FINANCE */}
+          {profileSubTab === 'wallet' && (
+            <div className="bg-white border border-[#e4e7ec] rounded-[22px] p-5 shadow-sm space-y-4">
+              <div className="bg-gradient-to-br from-[#5b5ce2] to-[#7c5cff] text-white p-5 rounded-[20px] shadow-md">
+                <span className="text-xs text-[#d8dbff] block mb-1">موجودی کیف پول شما:</span>
+                <div className="text-2xl font-black mb-2">{formatMoney(customerProfile.walletBalanceToman)}</div>
+                <div className="text-sm font-bold text-cyan-200">معادل تقریبی: {customerProfile.walletBalanceUsdt} USDT (تتر)</div>
+              </div>
+
+              <div className="p-4 bg-[#f8f9fc] border border-[#e4e7ec] rounded-xl text-xs leading-relaxed text-[#475467]">
+                💡 جهت شارژ مستقیم کیف پول خود می‌توانید از طریق درگاه آنلاین شاپرک، کارت‌به‌کارت و یا واریز تتر (USDT-TRC20) اقدام نمایید. با موجودی کیف پول، تمام سفارش‌ها به صورت آنی و بدون وقفه تایید خواهند شد.
+              </div>
+
+              <button
+                onClick={() => setView('support')}
+                className="w-full py-3 rounded-xl bg-[#f0f1ff] hover:bg-[#e4e7ff] text-[#5b5ce2] font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>درخواست افزایش موجودی / هماهنگی با پشتیبانی</span>
+              </button>
             </div>
           )}
         </div>

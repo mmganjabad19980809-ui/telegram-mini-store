@@ -26,6 +26,25 @@ export interface StoreConfig {
   botPollingActive?: boolean;
   botStatus?: 'online' | 'offline' | 'error';
   botLastError?: string;
+  usdRate?: number;
+  usdtRate?: number;
+  customDollarRateActive?: boolean;
+  tetherWallet?: string;
+  shebaNumber?: string;
+  bankName?: string;
+}
+
+export interface CustomerProfile {
+  id: string; // numeric Telegram ID
+  name: string;
+  username: string;
+  phone: string;
+  bio: string;
+  photoUrl?: string;
+  vipTier: 'عادی' | 'نقره‌ای' | 'طلایی' | 'VIP';
+  walletBalanceToman: number;
+  walletBalanceUsdt: number;
+  joinedDate: string;
 }
 
 export interface Category {
