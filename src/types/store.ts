@@ -17,7 +17,15 @@ export interface StoreConfig {
   secondaryColor: string;
   starsPaymentEnabled: boolean;
   cardPaymentEnabled: boolean;
+  adminUsername?: string;
   maintenanceMode: boolean;
+  maintenanceTitle?: string;
+  maintenanceMessage?: string;
+  announcementActive?: boolean;
+  announcementBanner?: string;
+  botPollingActive?: boolean;
+  botStatus?: 'online' | 'offline' | 'error';
+  botLastError?: string;
 }
 
 export interface Category {
@@ -103,6 +111,7 @@ export interface SupportTicket {
 }
 
 export interface AdminSecurityConfig {
+  username?: string;
   password: string;
   question: string;
   answer: string;

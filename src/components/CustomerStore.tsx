@@ -303,6 +303,9 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
     return fields;
   };
 
+  // Dismiss announcement state
+  const [announcementDismissed, setAnnouncementDismissed] = useState(false);
+
   return (
     <div className="max-w-[1100px] mx-auto p-3 sm:p-5 text-[#101828]">
       {/* Toast Notification */}
@@ -313,8 +316,101 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
         </div>
       )}
 
+      {/* Customer Announcement Banner */}
+      {config.announcementActive && config.announcementBanner && !announcementDismissed && (
+        <div className="mb-4 bg-gradient-to-r from-[#5b5ce2] to-[#7c5cff] text-white px-4 py-2.5 rounded-2xl shadow-sm flex items-center justify-between gap-3 text-xs sm:text-sm font-bold animate-fade-in border border-white/20">
+          <div className="flex items-center gap-2">
+            <span className="text-base">📢</span>
+            <span>{config.announcementBanner}</span>
+          </div>
+          <button
+            onClick={() => setAnnouncementDismissed(true)}
+            className="text-white/80 hover:text-white px-2 py-0.5 rounded-lg text-xs"
+            title="بستن اطلاعیه"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* MAINTENANCE MODE SCREEN */}
+      {config.maintenanceMode && view === 'home' && (
+        <div className="animate-fade-in my-6">
+          <header className="flex items-center justify-between gap-3 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-[16px] bg-gradient-to-br from-[#5b5ce2] to-[#7c5cff] text-white flex items-center justify-center font-black text-xl shadow-lg shadow-[#5b5ce233]">
+                م
+              </div>
+              <div>
+                <h1 className="text-lg font-black text-[#101828] m-0">{config.storeName}</h1>
+                <p className="text-xs text-[#667085] m-0 mt-0.5">{config.storeSubtitle}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setView('orders')}
+                className="w-11 h-11 rounded-[14px] bg-white border border-[#e4e7ec] flex items-center justify-center text-lg hover:bg-[#f5f6ff] transition shadow-sm"
+                title="سفارش‌های من"
+              >
+                🧾
+              </button>
+              <button
+                onClick={() => setView('support')}
+                className="w-11 h-11 rounded-[14px] bg-white border border-[#e4e7ec] flex items-center justify-center text-lg hover:bg-[#f5f6ff] transition shadow-sm"
+                title="پشتیبانی"
+              >
+                🎧
+              </button>
+              <button
+                onClick={onOpenAdmin}
+                className="w-11 h-11 rounded-[14px] bg-white border border-[#e4e7ec] flex items-center justify-center text-lg hover:bg-[#f5f6ff] transition shadow-sm"
+                title="ورود به مدیریت"
+              >
+                ⚙️
+              </button>
+            </div>
+          </header>
+
+          <div className="bg-white border-2 border-dashed border-[#cfd3ff] rounded-[28px] p-8 sm:p-12 text-center max-w-2xl mx-auto shadow-md">
+            <div className="w-20 h-20 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-4xl mx-auto mb-4 border border-amber-200 shadow-sm animate-pulse">
+              🚧
+            </div>
+            <span className="bg-amber-100 text-amber-800 text-xs font-black px-3 py-1 rounded-full mb-3 inline-block">
+              فروشگاه موقتاً بسته است
+            </span>
+            <h2 className="text-xl sm:text-2xl font-black text-[#101828] mb-3">
+              {config.maintenanceTitle || 'فروشگاه در حال به‌روزرسانی است'}
+            </h2>
+            <p className="text-xs sm:text-sm text-[#667085] leading-relaxed mb-6 max-w-lg mx-auto">
+              {config.maintenanceMessage ||
+                'کاربر گرامی، جهت ارتقا و به‌روزرسانی سرور، فروشگاه موقتاً غیرفعال شده است. به زودی در دسترس شما خواهیم بود.'}
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
+              <button
+                onClick={() => setView('orders')}
+                className="py-3 px-5 bg-[#f0f1ff] hover:bg-[#e4e7ff] text-[#5b5ce2] font-bold rounded-xl text-xs sm:text-sm transition"
+              >
+                🧾 پیگیری سفارش‌های قبلی
+              </button>
+              <button
+                onClick={() => setView('support')}
+                className="py-3 px-5 bg-[#5b5ce2] hover:bg-[#4849cb] text-white font-bold rounded-xl text-xs sm:text-sm transition shadow-sm"
+              >
+                🎧 ارتباط با پشتیبانی
+              </button>
+            </div>
+
+            <div className="mt-8 pt-4 border-t border-gray-100 text-[11px] text-gray-400">
+              مدیر فروشگاه هستید؟ با کلید میانبر <kbd className="px-1.5 py-0.5 bg-gray-100 rounded border text-gray-600">Alt + A</kbd> وارد پنل مدیریت شوید.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* VIEW: HOME */}
-      {view === 'home' && (
+      {view === 'home' && !config.maintenanceMode && (
         <div className="animate-fade-in">
           {/* Topbar matching store_v18.html */}
           <header className="flex items-center justify-between gap-3 mb-5">

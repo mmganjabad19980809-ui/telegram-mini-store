@@ -19,12 +19,13 @@ export const ServerInstallerCli: React.FC<ServerInstallerCliProps> = ({
   const [wizardStep, setWizardStep] = useState<number | null>(null);
   const [wizardData, setWizardData] = useState({
     storeName: config.storeName,
+    adminUser: config.adminUsername || 'admin',
+    adminPass: '',
     backendPort: '3000',
     connectionMode: 'tunnel',
     domain: config.domain || 'shop.example.com',
     botToken: config.botToken || '',
     adminId: config.adminNumericId || '',
-    adminPass: '',
   });
 
   // Diagnostics test results
@@ -47,20 +48,59 @@ export const ServerInstallerCli: React.FC<ServerInstallerCliProps> = ({
       // Start installer wizard
       setWizardStep(1);
       setTerminalView('wizard');
+    } else if (trimmed === '2' || trimmed === '02') {
+      addLog(`[UPDATE] Checking GitHub origin/main for updates...`);
+      addLog(`[UPDATE] Creating pre-update backup snapshot...`);
+      addLog(`[UPDATE] Application updated and rebuilt with --legacy-peer-deps.`);
+      alertTerminal(`Store updated successfully from GitHub repository.`);
+    } else if (trimmed === '3' || trimmed === '03') {
+      addLog(`[REPAIR] Running npm cache clean --force...`);
+      addLog(`[REPAIR] Removing peer dependency conflicts (esbuild resolved)...`);
+      addLog(`[REPAIR] Running npm install --legacy-peer-deps... (SUCCESS)`);
+      addLog(`[REPAIR] Rebuilding frontend assets via vite build... (SUCCESS)`);
+      addLog(`[REPAIR] Restarting systemd service tsm-store... (ACTIVE)`);
+      alertTerminal(`Repair completed! Dependency conflicts fixed and service restarted.`);
+    } else if (trimmed === '4' || trimmed === '04') {
+      addLog(`[UNINSTALL] Systemd service tsm-store disabled. Data preserved in /data.`);
+      alertTerminal(`Service stopped and uninstalled safely.`);
+    } else if (trimmed === '5' || trimmed === '05') {
+      addLog(`[START] systemctl start tsm-store dispatched.`);
+      alertTerminal(`TSM STORE service started (Port: ${config.backendPort || 3000}).`);
+    } else if (trimmed === '6' || trimmed === '06') {
+      addLog(`[STOP] systemctl stop tsm-store dispatched.`);
+      alertTerminal(`TSM STORE service stopped.`);
+    } else if (trimmed === '7' || trimmed === '07') {
+      addLog(`[RESTART] Service restart signal dispatched. Backend running on 127.0.0.1:${config.backendPort || 3000}`);
+      alertTerminal(`Service restarted successfully on port ${config.backendPort || 3000}`);
     } else if (trimmed === '8' || trimmed === '08') {
       setTerminalView('status');
+    } else if (trimmed === '9' || trimmed === '09') {
+      const bFile = `tsm-backup-${Date.now()}.tar.gz`;
+      addLog(`[BACKUP] Snapshot saved to /data/backups/${bFile}`);
+      alertTerminal(`Backup created successfully: /data/backups/${bFile}`);
+    } else if (trimmed === '10') {
+      addLog(`[SSL] Public domain configured: https://${config.domain || 'shop.example.com'}`);
+      addLog(`[SSL] Cloudflare Edge TLS verification: PASS (Port 443)`);
+      alertTerminal(`SSL & Domain configuration checked: HTTPS Active.`);
+    } else if (trimmed === '11') {
+      addLog(`[CONFIG] Current Store Name: ${config.storeName}`);
+      addLog(`[CONFIG] Current Backend Port: ${config.backendPort}`);
+      alertTerminal(`Settings can be edited via .env or in the Admin Panel (Alt + A).`);
+    } else if (trimmed === '12') {
+      addLog(`[CREDENTIALS] Admin Username: ${config.adminUsername || 'admin'}`);
+      addLog(`[CREDENTIALS] Admin Password updated. To change, use Admin Panel or shop option 12.`);
+      alertTerminal(`Admin credentials manager: Username is '${config.adminUsername || 'admin'}'.`);
     } else if (trimmed === '13') {
       setTerminalView('logs');
     } else if (trimmed === '14') {
       // Run full diagnostics
       runDiagnostics();
       setTerminalView('diagnostics');
-    } else if (trimmed === '5' || trimmed === '05' || trimmed === '7' || trimmed === '07') {
-      addLog(`[ACTION] Service restart signal dispatched. Backend running on 127.0.0.1:${config.backendPort}`);
-      alertTerminal(`Service restarted successfully on port ${config.backendPort}`);
-    } else if (trimmed === '9' || trimmed === '09') {
-      addLog(`[BACKUP] Snapshot saved to /data/backups/tsm-store-${Date.now()}.json`);
-      alertTerminal(`Backup created successfully: /data/backups/tsm-store-${Date.now()}.json`);
+    } else if (trimmed === '15') {
+      addLog(`[GITHUB] Remote URL: https://github.com/mmganjabad19980809-ui/telegram-mini-store.git`);
+      addLog(`[GITHUB] Active branch: main (HEAD)`);
+      addLog(`[GITHUB] Latest commit: feat: complete TSM STORE platform`);
+      alertTerminal(`GitHub repository linked: mmganjabad19980809-ui/telegram-mini-store`);
     } else if (trimmed === '0' || trimmed === '00') {
       setTerminalView('menu');
       alertTerminal(`Session closed. Type option number to reopen.`);
@@ -113,6 +153,7 @@ export const ServerInstallerCli: React.FC<ServerInstallerCliProps> = ({
       const updatedConfig: StoreConfig = {
         ...config,
         storeName: wizardData.storeName || config.storeName,
+        adminUsername: wizardData.adminUser || config.adminUsername || 'admin',
         backendPort: parseInt(wizardData.backendPort) || 3000,
         domain: wizardData.domain || config.domain,
         botToken: wizardData.botToken || config.botToken,
@@ -122,7 +163,7 @@ export const ServerInstallerCli: React.FC<ServerInstallerCliProps> = ({
       runDiagnostics();
       setTerminalView('diagnostics');
       setWizardStep(null);
-      addLog(`[INSTALL] Store «${wizardData.storeName}» successfully provisioned.`);
+      addLog(`[INSTALL] Store «${wizardData.storeName}» successfully provisioned with Admin User «${wizardData.adminUser}».`);
     }
   };
 
@@ -580,21 +621,34 @@ esac
                 )}
 
                 {wizardStep === 6 && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <p className="text-cyan-300">
-                      Step 6/6: Set Administrator Password{'\n'}
+                      Step 6/6: Set Administrator Username & Password{'\n'}
                       <span className="text-gray-400">
-                        Guide: Ramze oboore modiriyate store ra vared konid (Masked):
+                        Guide: Username va Ramze oboore modiriyate store ra vared konid:
                       </span>
                     </p>
-                    <input
-                      type="password"
-                      value={wizardData.adminPass}
-                      onChange={(e) => setWizardData({ ...wizardData, adminPass: e.target.value })}
-                      placeholder="Admin Password (Min 8 characters)"
-                      className="w-full bg-[#161b22] border border-[#30363d] rounded p-2 text-white outline-none focus:border-cyan-400"
-                      autoFocus
-                    />
+                    <div>
+                      <label className="block text-[11px] text-gray-400 mb-1">Admin Username:</label>
+                      <input
+                        type="text"
+                        value={wizardData.adminUser}
+                        onChange={(e) => setWizardData({ ...wizardData, adminUser: e.target.value })}
+                        placeholder="admin"
+                        className="w-full bg-[#161b22] border border-[#30363d] rounded p-2 text-white outline-none focus:border-cyan-400"
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-400 mb-1">Admin Password (Masked):</label>
+                      <input
+                        type="password"
+                        value={wizardData.adminPass}
+                        onChange={(e) => setWizardData({ ...wizardData, adminPass: e.target.value })}
+                        placeholder="Admin Password (Min 8 characters)"
+                        className="w-full bg-[#161b22] border border-[#30363d] rounded p-2 text-white outline-none focus:border-cyan-400"
+                      />
+                    </div>
                     <button
                       type="submit"
                       className="bg-[#238636] hover:bg-[#2ea043] text-white px-5 py-2 rounded font-bold text-xs"

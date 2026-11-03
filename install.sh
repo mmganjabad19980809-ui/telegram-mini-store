@@ -72,6 +72,15 @@ echo -e "==================================================${NC}"
 read -rp "$(echo -e "${BOLD}Enter Store Name (default: فروشگاه من و تو): ${NC}")" STORE_NAME
 STORE_NAME=${STORE_NAME:-"فروشگاه من و تو"}
 
+# Admin Username
+read -rp "$(echo -e "${BOLD}Enter Admin Username (default: admin): ${NC}")" ADMIN_USERNAME
+ADMIN_USERNAME=${ADMIN_USERNAME:-"admin"}
+
+# Admin Password
+read -rsp "$(echo -e "${BOLD}Enter Admin Password (default: Manoto@1405): ${NC}")" ADMIN_PASSWORD
+echo ""
+ADMIN_PASSWORD=${ADMIN_PASSWORD:-"Manoto@1405"}
+
 # Backend Port
 read -rp "$(echo -e "${BOLD}Enter Backend Internal Port (default: 3000): ${NC}")" BACKEND_PORT
 BACKEND_PORT=${BACKEND_PORT:-3000}
@@ -99,13 +108,33 @@ cat <<EOF > "$INSTALL_DIR/.env"
 PORT=${BACKEND_PORT}
 APP_URL=https://${STORE_DOMAIN}
 STORE_NAME=${STORE_NAME}
+ADMIN_USERNAME=${ADMIN_USERNAME}
+ADMIN_PASSWORD=${ADMIN_PASSWORD}
 TELEGRAM_BOT_TOKEN=${BOT_TOKEN}
 ADMIN_TELEGRAM_ID=${ADMIN_ID}
 NODE_ENV=production
 EOF
 
-# Ensure data directory exists
+# Ensure data directory exists and seed admin credentials
 mkdir -p "$INSTALL_DIR/data" "$INSTALL_DIR/data/backups"
+cat <<EOF > "$INSTALL_DIR/data/store-db.json"
+{
+  "installed": true,
+  "lastUpdate": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "adminCredentials": {
+    "username": "${ADMIN_USERNAME}",
+    "password": "${ADMIN_PASSWORD}"
+  },
+  "config": {
+    "storeName": "${STORE_NAME}",
+    "domain": "${STORE_DOMAIN}",
+    "backendPort": ${BACKEND_PORT},
+    "botToken": "${BOT_TOKEN}",
+    "adminNumericId": "${ADMIN_ID}",
+    "maintenanceMode": false
+  }
+}
+EOF
 
 # 7. Setup systemd service
 echo -e "\n${BLUE}[5/7] Configuring systemd service...${NC}"

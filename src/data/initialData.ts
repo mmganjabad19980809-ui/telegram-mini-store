@@ -19,10 +19,18 @@ export const initialConfig: StoreConfig = {
   secondaryColor: '#7c5cff',
   starsPaymentEnabled: true,
   cardPaymentEnabled: true,
+  adminUsername: 'admin',
   maintenanceMode: false,
+  maintenanceTitle: 'فروشگاه در حال به‌روزرسانی است',
+  maintenanceMessage: 'کاربر گرامی، جهت ارتقا و به‌روزرسانی سرور، فروشگاه موقتاً غیرفعال شده است. به زودی در دسترس شما خواهیم بود.',
+  announcementActive: false,
+  announcementBanner: '⭐️ تخفیف ویژه برای اشتراک‌های ماه جدید فعال شد!',
+  botPollingActive: false,
+  botStatus: 'offline',
 };
 
 export const initialAdminConfig: AdminSecurityConfig = {
+  username: 'admin',
   password: 'Manoto@1405',
   question: 'عبارت محرمانهٔ بازیابی فروشگاه چیست؟',
   answer: 'Sormeh!Narenj-84_Qamar#731',

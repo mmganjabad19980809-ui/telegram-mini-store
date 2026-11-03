@@ -68,14 +68,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onUpdateTickets,
   onResetDefaults,
 }) => {
-  // Auth state
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'recovery' | 'reset'>('login');
-  const [passwordInput, setPasswordInput] = useState('');
-  const [recoveryAnswerInput, setRecoveryAnswerInput] = useState('');
-  const [newPasswordInput, setNewPasswordInput] = useState('');
-  const [newPassword2Input, setNewPassword2Input] = useState('');
-  const [authError, setAuthError] = useState('');
 
   // Active section inside admin
   const [activeSection, setActiveSection] = useState<
@@ -125,15 +117,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const normalize = (val: string) =>
     val.trim().toLowerCase().replace(/[\u200c\s]+/g, ' ').replace(/[ي]/g, 'ی').replace(/[ك]/g, 'ک');
 
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'recovery' | 'reset'>('login');
+  const [usernameInput, setUsernameInput] = useState(adminConfig.username || 'admin');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [recoveryAnswerInput, setRecoveryAnswerInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [newPassword2Input, setNewPassword2Input] = useState('');
+  const [authError, setAuthError] = useState('');
+
+  // Bot live status in admin
+  const [botLoading, setBotLoading] = useState(false);
+  const [botLiveInfo, setBotLiveInfo] = useState<any>(null);
+
   // AUTH HANDLERS
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === adminConfig.password) {
+    const expectedUser = (adminConfig.username || 'admin').trim();
+    const inputUser = usernameInput.trim();
+
+    if ((inputUser === expectedUser || !inputUser) && passwordInput === adminConfig.password) {
       setIsAuthenticated(true);
       setAuthError('');
       toast('ورود به پنل با موفقیت انجام شد');
-    } else {
+    } else if (passwordInput !== adminConfig.password) {
       setAuthError('رمز عبور مدیریت اشتباه است.');
+    } else {
+      setAuthError(`نام کاربری اشتباه است. (نام کاربری معتبر: ${expectedUser})`);
     }
   };
 
@@ -429,6 +440,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           {authMode === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
+                <label className="block text-xs font-bold text-[#344054] mb-1.5">نام کاربری مدیریت</label>
+                <input
+                  type="text"
+                  value={usernameInput}
+                  onChange={(e) => setUsernameInput(e.target.value)}
+                  placeholder="نام کاربری (پیش‌فرض: admin)"
+                  required
+                  autoFocus
+                  className="w-full border border-[#e4e7ec] rounded-[14px] p-3 text-sm outline-none focus:border-[#5b5ce2]"
+                />
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-[#344054] mb-1.5">رمز عبور مدیریت</label>
                 <input
                   type="password"
@@ -436,7 +460,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   onChange={(e) => setPasswordInput(e.target.value)}
                   placeholder="رمز مدیریت (پیش‌فرض: Manoto@1405)"
                   required
-                  autoFocus
                   className="w-full border border-[#e4e7ec] rounded-[14px] p-3 text-sm outline-none focus:border-[#5b5ce2]"
                 />
               </div>
@@ -705,7 +728,78 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           {/* SECTION: DASHBOARD */}
           {activeSection === 'dashboard' && (
             <div className="space-y-6">
-              <h3 className="text-lg font-black text-[#101828]">خلاصه عملکرد فروشگاه</h3>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <h3 className="text-lg font-black text-[#101828]">خلاصه عملکرد فروشگاه</h3>
+
+                {/* Quick Store Open/Closed Badge */}
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-xs font-black px-3 py-1 rounded-full flex items-center gap-1.5 ${
+                      config.maintenanceMode
+                        ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                        : 'bg-green-100 text-green-800 border border-green-300'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${config.maintenanceMode ? 'bg-amber-500 animate-ping' : 'bg-green-500'}`}></span>
+                    <span>{config.maintenanceMode ? 'فروشگاه موقتاً بسته است (حالت تعمیرات)' : 'فروشگاه باز و فعال است'}</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Maintenance & Customer Announcement Box */}
+              <div className={`p-4 rounded-[20px] border transition shadow-sm ${
+                config.maintenanceMode ? 'bg-amber-50 border-amber-200' : 'bg-[#f8f9ff] border-[#dfe3ff]'
+              }`}>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
+                  <div>
+                    <strong className="text-sm font-bold text-[#101828] block">
+                      {config.maintenanceMode ? '🚧 فروشگاه در حالت تعمیرات است' : '🟢 کنترل دسترسی و باز/بسته بودن فروشگاه'}
+                    </strong>
+                    <p className="text-xs text-[#667085] mt-0.5">
+                      {config.maintenanceMode
+                        ? 'مشتریان هنگام ورود صفحه تعمیرات را می‌بینند و امکان خرید نخواهند داشت.'
+                        : 'فروشگاه هم‌اکنون به روی تمام مشتریان باز است و ثبت سفارش فعال می‌باشد.'}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-none">
+                    <button
+                      onClick={() => {
+                        const next = !config.maintenanceMode;
+                        onUpdateConfig({ ...config, maintenanceMode: next });
+                        toast(next ? 'فروشگاه بسته شد (حالت تعمیرات فعال گردید)' : 'فروشگاه با موفقیت باز و فعال شد');
+                      }}
+                      className={`px-4 py-2 rounded-xl text-xs font-black transition shadow-sm ${
+                        config.maintenanceMode
+                          ? 'bg-green-600 hover:bg-green-700 text-white'
+                          : 'bg-amber-600 hover:bg-amber-700 text-white'
+                      }`}
+                    >
+                      {config.maintenanceMode ? '✓ بازگشایی و فعال‌سازی فروشگاه' : '⛔ بستن فروشگاه (تعمیرات)'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Announcement notification input */}
+                <div className="pt-3 border-t border-gray-200/60 flex flex-col sm:flex-row gap-2 items-center text-xs">
+                  <span className="font-bold text-[#344054] flex-none">📢 نوتیفیکیشن مشتریان:</span>
+                  <input
+                    value={config.announcementBanner || ''}
+                    onChange={(e) => onUpdateConfig({ ...config, announcementBanner: e.target.value })}
+                    placeholder="متن پیام بالای صفحه برای مشتریان (مثلاً تخفیف ویژه یا زمان تحویل)..."
+                    className="flex-1 bg-white border border-[#e4e7ec] rounded-xl px-3 py-1.5 text-xs outline-none focus:border-[#5b5ce2]"
+                  />
+                  <label className="flex items-center gap-1.5 cursor-pointer font-bold text-[#344054] flex-none">
+                    <input
+                      type="checkbox"
+                      checked={!!config.announcementActive}
+                      onChange={(e) => onUpdateConfig({ ...config, announcementActive: e.target.checked })}
+                      className="rounded"
+                    />
+                    <span>نمایش نوتیف</span>
+                  </label>
+                </div>
+              </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="bg-[#f8f9fc] border border-[#e4e7ec] rounded-[18px] p-4">
@@ -1104,18 +1198,119 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
                 </div>
 
+                {/* Real Bot Service Controller */}
+                <div className="bg-[#f8f9ff] border border-[#cfd3ff] rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <strong className="text-sm font-bold text-[#101828] block">
+                        وضعیت اجرای ربات در سرور (Telegram Bot Engine)
+                      </strong>
+                      <span className="text-xs text-[#667085]">
+                        سرویس پاسخ‌دهی به کاربران تلگرام و ارسال دکمه‌های ورود به مینی‌اپ
+                      </span>
+                    </div>
+                    <span
+                      className={`text-xs font-black px-2.5 py-1 rounded-full ${
+                        botLiveInfo?.username
+                          ? 'bg-green-100 text-green-800 border border-green-300'
+                          : 'bg-gray-100 text-gray-700 border border-gray-300'
+                      }`}
+                    >
+                      {botLiveInfo?.username ? `● متصل: @${botLiveInfo.username}` : '○ آماده استارت'}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={botLoading}
+                      onClick={async () => {
+                        setBotLoading(true);
+                        try {
+                          const res = await fetch('/api/bot/start', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ token: config.botToken }),
+                          });
+                          const data = await res.json();
+                          if (data.ok) {
+                            setBotLiveInfo(data.botInfo || { username: config.botUsername });
+                            toast(`ربات تلگرام با موفقیت استارت شد! ✓ (@${data.botInfo?.username || config.botUsername})`);
+                          } else {
+                            toast(`خطا در استارت ربات: ${data.error || 'توکن نامعتبر است'}`);
+                          }
+                        } catch (err: any) {
+                          toast(`خطا در ارتباط با سرور: ${err.message}`);
+                        } finally {
+                          setBotLoading(false);
+                        }
+                      }}
+                      className="px-4 py-2 bg-[#12b76a] hover:bg-[#0fa05b] text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                    >
+                      <span>▶️ استارت و راه‌اندازی ربات در تلگرام</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={botLoading}
+                      onClick={async () => {
+                        setBotLoading(true);
+                        try {
+                          await fetch('/api/bot/stop', { method: 'POST' });
+                          setBotLiveInfo(null);
+                          toast('سرویس ربات تلگرام متوقف شد');
+                        } catch (_) {
+                          toast('خطا در توقف ربات');
+                        } finally {
+                          setBotLoading(false);
+                        }
+                      }}
+                      className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition"
+                    >
+                      ⏹️ توقف ربات
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={botLoading}
+                      onClick={async () => {
+                        setBotLoading(true);
+                        try {
+                          const res = await fetch('/api/bot/test', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              token: config.botToken,
+                              adminId: config.adminNumericId,
+                            }),
+                          });
+                          const data = await res.json();
+                          if (data.ok) {
+                            toast('پیام تست با موفقیت به اکانت تلگرام شما ارسال شد! ✓');
+                          } else {
+                            toast(`خطا در ارسال پیام تست: ${data.description || 'شناسه ادمین نامعتبر است'}`);
+                          }
+                        } catch (e: any) {
+                          toast(`خطا: ${e.message}`);
+                        } finally {
+                          setBotLoading(false);
+                        }
+                      }}
+                      className="px-3.5 py-2 bg-[#f0f1ff] hover:bg-[#e4e7ff] text-[#5b5ce2] rounded-xl text-xs font-bold transition flex items-center gap-1"
+                    >
+                      🔔 ارسال پیام تست به تلگرام من
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex items-center gap-3 pt-2">
                   <button
-                    onClick={() => toast('تنظیمات ربات ذخیره شد')}
+                    onClick={() => {
+                      toast('تنظیمات ربات ذخیره شد');
+                    }}
                     className="px-6 py-2.5 bg-[#5b5ce2] text-white font-bold rounded-xl hover:bg-[#4849cb] transition shadow-sm"
                   >
                     ذخیره تنظیمات ربات
-                  </button>
-                  <button
-                    onClick={() => toast('تست اتصال ربات تلگرام موفق بود ✓')}
-                    className="px-4 py-2.5 bg-[#f0f1ff] text-[#5b5ce2] font-bold rounded-xl hover:bg-[#e4e7ff] transition"
-                  >
-                    تست اتصال ربات
                   </button>
                 </div>
               </div>
