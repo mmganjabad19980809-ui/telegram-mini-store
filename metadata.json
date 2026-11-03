@@ -1,0 +1,6 @@
+{
+  "name": "TSM STORE - فروشگاه تلگرام من و تو",
+  "description": "پلتفرم جامع فروشگاهی تلگرام TSM STORE با قالب من و تو، مینی‌اپ اختصاصی، بات تلگرام و پنل مدیریت",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f5f7fb;
+  --card: #ffffff;
+  --text: #101828;
+  --muted: #667085;
+  --line: #e4e7ec;
+  --primary: #5b5ce2;
+  --primary2: #7c5cff;
+  --success: #12b76a;
+  --danger: #f04438;
+  --shadow: 0 12px 35px rgba(16, 24, 40, 0.07);
+  --r: 22px;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Vazirmatn', Tahoma, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f2f6;
+}
+::-webkit-scrollbar-thumb {
+  background: #c7cbdf;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a0a6c6;
+}
+
+/* Terminal scanline and pulse effects */
+.terminal-glow {
+  text-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
+}
+
+/* Hero background circle */
+.hero-gradient {
+  background: linear-gradient(135deg, #171936, #3435a9);
+  position: relative;
+  overflow: hidden;
+}
+.hero-gradient::after {
+  content: "";
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+  left: -70px;
+  top: -80px;
+  pointer-events: none;
+}

@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>فروشگاه من و تو</title>
+<!-- نسخه ۱۸: افزودن دکمه بازگشت به منوی اصلی در صفحه ورود مدیریت -->
+<style>
+:root{
+  --bg:#f5f7fb;--card:#fff;--text:#101828;--muted:#667085;--line:#e4e7ec;
+  --primary:#5b5ce2;--primary2:#7c5cff;--success:#12b76a;--danger:#f04438;
+  --shadow:0 12px 35px rgba(16,24,40,.07);--r:22px
+}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:Tahoma,Arial,sans-serif}
+button,input,textarea,select{font:inherit}button{cursor:pointer;border:0}
+.app{max-width:1100px;margin:auto;padding:18px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:12px}.logo{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:white;display:grid;place-items:center;font-weight:900;font-size:19px;box-shadow:0 10px 25px #5b5ce233}
+.brand h1{font-size:18px;margin:0}.brand p{font-size:11px;color:var(--muted);margin:4px 0 0}
+.icon-btn{background:white;border:1px solid var(--line);width:44px;height:44px;border-radius:14px}
+.hero{background:linear-gradient(135deg,#171936,#3435a9);color:white;border-radius:28px;padding:26px;box-shadow:var(--shadow);margin-bottom:22px;overflow:hidden;position:relative}
+.hero:after{content:"";position:absolute;width:220px;height:220px;border-radius:50%;background:#ffffff10;left:-70px;top:-80px}
+.hero h2{margin:0 0 8px;font-size:25px}.hero p{margin:0;color:#d8dbff;line-height:1.9;font-size:13px}
+.search{margin-top:18px;background:#ffffff16;border:1px solid #ffffff25;border-radius:15px;padding:12px 15px;color:white;width:100%;outline:none}
+.search::placeholder{color:#cdd0ee}
+.section-title{display:flex;justify-content:space-between;align-items:center;margin:24px 2px 13px}.section-title h3{margin:0;font-size:17px}.section-title span{font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--shadow)}
+.cat{min-height:125px;display:flex;flex-direction:column;justify-content:space-between}.cat .emoji{font-size:27px}.cat b{font-size:14px}.cat small{color:var(--muted);font-size:11px}
+.products{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.product{padding:18px}.product-head{display:flex;align-items:center;gap:12px}.product-icon{width:48px;height:48px;border-radius:15px;background:#eef0ff;display:grid;place-items:center;font-size:23px;overflow:hidden;flex:none}.product-icon img{width:100%;height:100%;object-fit:cover}.product-image{width:100%;height:190px;border-radius:18px;object-fit:cover;background:#f0f1ff;margin-bottom:14px}.mini-btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:34px;min-width:86px;border:1px solid #dfe3ff;border-radius:11px;padding:7px 11px;background:#f5f6ff;color:#4547c7;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background .18s,border-color .18s,transform .18s}.mini-btn:hover{background:#e9ebff;border-color:#bfc4ff;transform:translateY(-1px)}.mini-btn:focus-visible,.product-action:focus-visible{outline:3px solid #a5b4fc;outline-offset:2px}.mini-btn.danger,.btn.danger{color:#b42318;background:#fff5f4;border-color:#ffd6d2}.mini-btn.danger:hover{background:#ffe8e5;border-color:#ffb8b0}.mini-btn.success{color:#067647;background:#ecfdf3;border-color:#abefc6}.product-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}.product-action{display:flex;align-items:center;justify-content:center;gap:7px;min-height:42px;margin:0!important;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#f8f9fc;color:#344054;font-size:12px;font-weight:700;white-space:nowrap;transition:background .18s,border-color .18s,transform .18s}.product-action:hover{background:#f0f1ff;border-color:#c7cbff;transform:translateY(-1px)}.product-action.is-danger{color:#b42318;background:#fff5f4;border-color:#ffd6d2}.product-action.is-danger:hover{background:#ffe8e5}.product-action.is-success{color:#067647;background:#ecfdf3;border-color:#abefc6}.plan-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}.plan{gap:10px;flex-wrap:wrap}.plan .meta{min-width:100px;flex:1}.pill.inactive{background:#f2f4f7;color:#475467}.product-status{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;font-size:10px;font-weight:700;background:#ecfdf3;color:#067647}.product-status.inactive{background:#fff4e5;color:#b54708}.admin-product-card{position:relative;overflow:hidden}.admin-product-card:before{content:"";position:absolute;inset:0 0 auto;height:3px;background:linear-gradient(90deg,var(--primary),var(--primary2))}.admin-product-card.is-inactive:before{background:#d0d5dd}.admin-product-card.is-inactive{background:#fcfcfd}.admin-product-card .product-head{align-items:flex-start}.admin-product-card .product-head>div:last-child{min-width:0}.admin-product-card .product-head h4{overflow-wrap:anywhere}.admin-product-card .product-image{object-fit:cover}.product-card-disabled{opacity:.58}.product-image-placeholder{width:100%;height:190px;border-radius:18px;background:linear-gradient(135deg,#eef0ff,#f7f7ff);display:grid;place-items:center;font-size:45px;margin-bottom:14px}.product h4{margin:0 0 5px}.product small{color:var(--muted)}.price{font-size:18px;font-weight:900;margin-top:16px}.price span{font-size:11px;color:var(--muted);font-weight:400}.btn{width:100%;padding:12px 15px;border-radius:14px;margin-top:14px;background:var(--primary);color:white;font-weight:bold}.btn.light{background:#f0f1ff;color:var(--primary)}.btn.success{background:var(--success)}
+.plan-list{display:grid;gap:10px;margin-top:15px}.plan{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);padding:13px;border-radius:15px}.plan .meta{display:flex;flex-direction:column;gap:5px}.plan small{color:var(--muted)}.pill{background:#ecfdf3;color:#067647;padding:5px 8px;border-radius:999px;font-size:10px}
+.hidden{display:none!important}.view{animation:fade .2s ease}@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.back{display:inline-flex;align-items:center;justify-content:center;gap:9px;background:linear-gradient(135deg,#fff,#f5f6ff);color:#4547c7;border:1px solid #dfe3ff;border-radius:14px;padding:11px 16px;margin:0 0 16px;font-size:13px;font-weight:800;box-shadow:0 4px 12px rgba(69,71,199,.08);transition:transform .18s,box-shadow .18s,background .18s}.back:hover{background:#eef0ff;box-shadow:0 7px 18px rgba(69,71,199,.13);transform:translateY(-1px)}.back:focus-visible{outline:3px solid #a5b4fc;outline-offset:3px}.back::before{content:"←";display:grid;place-items:center;width:25px;height:25px;border-radius:9px;background:#e9ebff;font-size:16px}
+.steps{display:flex;gap:7px;margin:18px 0}.step{height:6px;flex:1;border-radius:99px;background:#e4e7ec}.step.active{background:var(--primary)}
+.form{display:grid;gap:12px}.field label{display:block;font-size:12px;font-weight:bold;margin-bottom:7px}.field input,.field textarea,.field select{width:100%;border:1px solid var(--line);border-radius:14px;padding:13px;background:#fff;outline:none}.field textarea{min-height:100px;resize:vertical}.field input:focus,.field textarea:focus{border-color:var(--primary)}
+.receipt{border:2px dashed #cfd3ff;border-radius:18px;padding:25px;text-align:center;background:#f8f8ff}.receipt strong{display:block;margin-bottom:7px}.summary{display:grid;gap:8px;background:#f8f9fc;border-radius:17px;padding:15px}.row{display:flex;justify-content:space-between;font-size:13px}.row.total{font-weight:900;font-size:16px;border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
+.admin{display:grid;grid-template-columns:230px 1fr;gap:15px}.side{background:#171936;color:white;border-radius:22px;padding:15px;height:max-content;position:sticky;top:15px}.side h3{margin:7px 10px 20px}.nav{display:grid;gap:6px}.nav button{display:block;width:100%;border:0;font-weight:600;transition:.18s}.nav button.active{background:#ffffff1a;color:#fff;transform:translateX(-2px)}.nav button.exit{margin-top:12px;border-top:1px solid #ffffff18;padding-top:16px}.nav button{background:transparent;color:#d8dbff;text-align:right;padding:12px;border-radius:12px}.nav button.active,.nav button:hover{background:#ffffff12;color:#fff}.admin-main{min-width:0}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat{padding:18px}.stat small{color:var(--muted)}.stat strong{display:block;font-size:24px;margin-top:8px}.table{width:100%;border-collapse:collapse}.table th,.table td{text-align:right;padding:13px;border-bottom:1px solid var(--line);font-size:12px}.status{padding:5px 9px;border-radius:999px;font-size:10px}.pending{background:#fffaeb;color:#b54708}.ok{background:#ecfdf3;color:#067647}.stock{display:flex;justify-content:space-between;align-items:center;padding:13px;border:1px solid var(--line);border-radius:14px;margin-bottom:8px}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#171936;color:#fff;padding:12px 17px;border-radius:14px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:5}.toast.show{opacity:1}
+@media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}.products{grid-template-columns:1fr 1fr}.stats{grid-template-columns:1fr 1fr}.admin{grid-template-columns:1fr}.side{position:static}.nav{grid-template-columns:repeat(4,1fr)}.nav button{text-align:center;font-size:11px}}
+@media(max-width:520px){.product-actions{grid-template-columns:1fr 1fr}.product-action{font-size:11px;padding:9px 6px}.plan-actions{width:100%;justify-content:stretch}.plan-actions .mini-btn{flex:1}.app{padding:12px}.grid,.products,.stats{grid-template-columns:1fr 1fr}.hero h2{font-size:21px}.products{grid-template-columns:1fr}.admin{grid-template-columns:1fr}.nav{grid-template-columns:1fr 1fr}.table{min-width:600px}.table-wrap{overflow:auto}.brand p{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div id="customerView" class="view">
+    <header class="topbar">
+      <div class="brand"><div class="logo">م</div><div><h1>فروشگاه من و تو</h1><p>خرید ساده، سریع و مطمئن</p></div></div>
+      <div style="display:flex;gap:7px"><button class="icon-btn" onclick="openOrders()">🧾</button><button class="icon-btn" onclick="admin()">⚙️</button></div>
+    </header>
+
+    <section class="hero">
+      <h2>چی لازم داری؟</h2>
+      <p>محصولت رو انتخاب کن، پلن مناسب رو بردار و بقیه مراحل رو خیلی ساده انجام بده.</p>
+      <input id="search" class="search" placeholder="جستجوی محصول..." oninput="renderProducts()">
+    </section>
+
+    <div id="homeContent">
+      <div class="section-title"><h3>دسته‌بندی‌ها</h3><span>همه محصولات</span></div>
+      <div class="grid" id="categories"></div>
+      <div class="section-title"><h3>محبوب‌ترین‌ها</h3><span>انتخاب سریع</span></div>
+      <div class="products" id="products"></div>
+    </div>
+  </div>
+
+  <main id="productView" class="view hidden"></main>
+  <main id="checkoutView" class="view hidden"></main>
+  <main id="ordersView" class="view hidden"></main>
+  <main id="adminView" class="view hidden"></main>
+</div>
+
+
+<div id="productModal" class="hidden" style="position:fixed;inset:0;background:rgba(16,24,40,.68);z-index:9999;padding:18px;overflow:auto">
+ <div class="card" style="max-width:620px;margin:5vh auto;background:#fff">
+  <div class="topbar">
+   <div><h2 style="margin:0">افزودن محصول</h2><small style="color:var(--muted)">ساخت محصول جدید</small></div>
+   <button class="icon-btn" type="button" onclick="closeProductModal()">×</button>
+  </div>
+  <div class="form">
+   <div class="field"><label>نام محصول *</label><input id="pmName" type="text" placeholder="مثلاً ChatGPT"></div>
+   <div class="field"><label>توضیحات</label><textarea id="pmDesc" placeholder="توضیح محصول"></textarea></div>
+   <div class="field"><label>دسته‌بندی *</label><select id="pmCat"></select></div>
+   <div class="field"><label>آیکون</label><input id="pmIcon" type="text" value="✦" maxlength="2"></div>
+   <div class="field"><label>تصویر محصول</label><input id="pmImage" type="file" accept="image/*"></div>
+   <div class="field"><label>فرم اختصاصی سفارش</label><select id="pmFormType"><option value="auto">خودکار بر اساس دسته‌بندی</option><option value="ai">اشتراک هوش مصنوعی</option><option value="game">بازی و پرداخت درون‌برنامه‌ای</option><option value="vpn">VPN</option><option value="basic">فرم ساده</option><option value="custom">فرم سفارشی</option></select></div>
+   <div class="field"><label>فیلدهای اختصاصی این محصول (اختیاری)</label><textarea id="pmCustomFields" placeholder="هر فیلد در یک خط: عنوان | نوع | اجباری/اختیاری | گزینه‌ها&#10;ایمیل Activision | email | اجباری&#10;شناسه بازیکن | text | اجباری&#10;روش ورود | select | اجباری | Google,Apple,Activision"></textarea><small style="color:var(--muted);line-height:1.9">این فیلدها فقط برای همین محصول هستند. نوع‌ها: text، email، tel، select. برای گزینه‌های select، گزینه‌ها را با کاما جدا کنید. مثال: ایمیل | email | اجباری</small></div>
+   <button type="button" class="btn success" onclick="createProductFromModal()">✓ ساخت محصول</button>
+  </div>
+ </div>
+</div>
+
+
+<div id="formEditorModal" class="hidden" style="position:fixed;inset:0;background:rgba(16,24,40,.68);z-index:10001;padding:18px;overflow:auto">
+ <div class="card" style="max-width:650px;margin:5vh auto;background:#fff">
+  <div class="topbar"><div><h2 style="margin:0">تنظیم فرم اختصاصی محصول</h2><small id="formEditorSubtitle" style="color:var(--muted)"></small></div><button class="icon-btn" type="button" onclick="closeFormEditor()">×</button></div>
+  <div class="form">
+   <div class="field"><label>الگوی اولیه فرم</label><select id="feType"><option value="ai">اشتراک هوش مصنوعی</option><option value="game">بازی و پرداخت درون‌برنامه‌ای</option><option value="vpn">VPN</option><option value="basic">فرم ساده</option><option value="custom">فقط فیلدهای سفارشی</option></select><small style="color:var(--muted)">با تغییر الگو، فیلدهای پیش‌فرض همان نوع نمایش داده می‌شوند. فیلدهای زیر فقط به همین محصول اضافه می‌شوند.</small></div>
+   <div class="field"><label>فیلدهای اختصاصی این محصول</label><textarea id="feFields" style="min-height:180px" placeholder="عنوان | نوع | اجباری/اختیاری | گزینه‌ها&#10;ایمیل اکانت | email | اجباری&#10;روش ورود | select | اجباری | Google,Apple,Activision"></textarea><small style="color:var(--muted);line-height:1.9">هر خط یک فیلد. نوع‌ها: text، email، tel، select. مثال: «ایمیل اکانت | email | اجباری» یا «روش ورود | select | اجباری | Google,Apple». اگر فیلدی اختیاری باشد بنویسید «اختیاری».</small></div>
+   <button type="button" class="btn success" onclick="saveProductFormSettings()">ذخیره فرم این محصول</button>
+  </div>
+ </div>
+</div>
+
+
+<div id="orderModal" class="hidden" style="position:fixed;inset:0;background:rgba(16,24,40,.68);z-index:9998;padding:18px;overflow:auto">
+ <div class="card" style="max-width:760px;margin:4vh auto;background:#fff">
+  <div class="topbar">
+   <div><h2 style="margin:0">جزئیات سفارش</h2><small id="omSub" style="color:var(--muted)"></small></div>
+   <button class="icon-btn" type="button" onclick="closeOrderDetails()">×</button>
+  </div>
+  <div id="orderDetailsBody"></div>
+ </div>
+</div>
+
+
+<div id="customerOrderForm" class="hidden" style="position:fixed;inset:0;background:rgba(16,24,40,.68);z-index:9997;padding:18px;overflow:auto">
+ <div class="card" style="max-width:620px;margin:4vh auto;background:#fff">
+  <div class="topbar">
+   <div><h2 style="margin:0">تکمیل اطلاعات سفارش</h2><small style="color:var(--muted)">فقط اطلاعات لازم برای انجام خرید</small></div>
+   <button class="icon-btn" type="button" onclick="closeCustomerOrderForm()">×</button>
+  </div>
+  <div class="form">
+   <div class="field"><label>نام *</label><input id="cfName" type="text" placeholder="نام شما"></div>
+   <div class="field"><label>آیدی تلگرام *</label><input id="cfTelegram" type="text" placeholder="@username"></div>
+   <div class="field"><label>شماره تماس *</label><input id="cfPhone" type="tel" placeholder="09xxxxxxxxx"></div>
+   <div id="cfVpnNameWrap" class="field"><label>نام اکانت VPN *</label><input id="cfVpnName" type="text" placeholder="نامی که برای اکانت VPN می‌خواهی"></div>
+   <div class="field"><label>عکس رسید پرداخت *</label><input id="cfReceipt" type="file" accept="image/*"></div>
+   <div class="field"><label>توضیحات</label><textarea id="cfDescription" placeholder="اگر نکته‌ای درباره سفارش داری اینجا بنویس"></textarea></div>
+   <div style="padding:11px 13px;border-radius:14px;background:#f7f8fc;color:var(--muted);font-size:12px;line-height:1.9">
+     برای حفظ سادگی، فقط اطلاعات ضروری دریافت می‌شود. «نام اکانت» فقط برای خرید VPN است.
+   </div>
+   <button type="button" class="btn success" onclick="submitCustomerOrder()">ارسال اطلاعات و رسید</button>
+  </div>
+ </div>
+</div>
+
+
+<div id="planModal" class="hidden" style="position:fixed;inset:0;background:rgba(16,24,40,.68);z-index:10000;padding:18px;overflow:auto">
+ <div class="card" style="max-width:560px;margin:7vh auto;background:#fff">
+  <div class="topbar">
+   <div><h2 style="margin:0">افزودن پلن</h2><small id="planModalProduct" style="color:var(--muted)"></small></div>
+   <button class="icon-btn" type="button" onclick="closePlanModal()">×</button>
+  </div>
+  <div class="form">
+   <div class="field"><label>نام پلن *</label><input id="plName" type="text" placeholder="مثلاً ۳۰ روزه"></div>
+   <div class="field"><label>قیمت *</label><input id="plPrice" type="number" min="0" placeholder="مثلاً 850000"></div>
+   <div class="field"><label>موجودی</label><input id="plStock" type="number" min="0" value="0"></div>
+   <div class="field"><label>واحد موجودی</label><input id="plUnit" type="text" value="مورد" placeholder="مثلاً لینک"></div>
+   <button type="button" class="btn success" onclick="createPlanFromModal()">✓ ساخت پلن</button>
+  </div>
+ </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const data = {
+ categories:[
+  {id:'ai',name:'اشتراک هوش مصنوعی',icon:'✦',count:4},
+  {id:'game',name:'پرداخت درون‌برنامه‌ای',icon:'🎮',count:3},
+  {id:'battle',name:'بتل‌پس و بازی',icon:'🏆',count:3},
+  {id:'vpn',name:'VPN',icon:'🛡️',count:4}
+ ],
+ products:[
+  {id:'chatgpt',cat:'ai',name:'ChatGPT',icon:'✦',image:'',desc:'اشتراک هوش مصنوعی',plans:[
+   {id:'c1',name:'۱ ماهه',price:390000,stock:12,unit:'اشتراک'},
+   {id:'c2',name:'۲ ماهه',price:720000,stock:7,unit:'اشتراک'},
+   {id:'c3',name:'۳ ماهه',price:990000,stock:4,unit:'اشتراک'}
+  ]},
+  {id:'gemini',cat:'ai',name:'Gemini',icon:'✧',image:'',desc:'اشتراک هوش مصنوعی',plans:[
+   {id:'g1',name:'۱ ماهه',price:320000,stock:8,unit:'اشتراک'},
+   {id:'g2',name:'۳ ماهه',price:850000,stock:3,unit:'اشتراک'}
+  ]},
+  {id:'claude',cat:'ai',name:'Claude',icon:'◈',image:'',desc:'اشتراک هوش مصنوعی',plans:[
+   {id:'cl1',name:'۱ ماهه',price:420000,stock:5,unit:'اشتراک'},
+   {id:'cl2',name:'۳ ماهه',price:1050000,stock:2,unit:'اشتراک'}
+  ]},
+  {id:'cod',cat:'game',name:'Call of Duty',icon:'🎯',image:'',desc:'خرید CP و پرداخت درون‌برنامه‌ای',plans:[
+   {id:'cod1',name:'800 CP',price:290000,stock:20,unit:'CP'},
+   {id:'cod2',name:'2400 CP',price:760000,stock:11,unit:'CP'}
+  ]},
+  {id:'pubg',cat:'game',name:'PUBG Mobile',icon:'🎮',image:'',desc:'UC و پرداخت درون‌برنامه‌ای',plans:[
+   {id:'p1',name:'660 UC',price:310000,stock:15,unit:'UC'},
+   {id:'p2',name:'1800 UC',price:790000,stock:9,unit:'UC'}
+  ]},
+  {id:'fortnite',cat:'battle',name:'Fortnite',icon:'⚡',image:'',desc:'بتل‌پس و آیتم‌های بازی',plans:[
+   {id:'f1',name:'Battle Pass',price:520000,stock:6,unit:'دسترسی'},
+   {id:'f2',name:'V-Bucks Pack',price:680000,stock:5,unit:'بسته'}
+  ]},
+  {id:'vpn',cat:'vpn',name:'VPN',icon:'🛡️',image:'',desc:'لینک اختصاصی با حجم و مدت انتخابی',plans:[
+   {id:'v1',name:'۳۰ روزه · ۲۰GB',price:180000,stock:14,unit:'لینک'},
+   {id:'v2',name:'۳۰ روزه · ۳۰GB',price:230000,stock:10,unit:'لینک'},
+   {id:'v3',name:'۶۰ روزه · ۴۰GB',price:390000,stock:7,unit:'لینک'},
+   {id:'v4',name:'۹۰ روزه · ۶۰GB',price:520000,stock:3,unit:'لینک'}
+  ]}
+ ],
+ orders:[
+  {id:'#MT-1042',product:'VPN',plan:'۳۰ روزه · ۳۰GB',amount:230000,status:'در انتظار بررسی',customer:{name:'مشتری نمونه',username:'demo_customer',phone:'—'},receipt:'receipt-vpn.jpg',accountInfo:'نوع سرویس: VPN\nحجم: ۳۰ گیگ\nمدت: ۳۰ روز',message:'',delivery:''},
+  {id:'#MT-1039',product:'ChatGPT',productId:'chatgpt',plan:'۱ ماهه',amount:390000,status:'تکمیل شده',customer:{name:'مشتری نمونه دوم',username:'demo_customer2',phone:'—'},receipt:'receipt-chatgpt.jpg',receiptName:'receipt-chatgpt.jpg',formData:{'روش ورود اکانت':'Google','ایمیل اکانت':'customer@example.com','نام کاربری / شناسه اکانت (در صورت وجود)':'demo_customer2'},accountInfo:'روش ورود اکانت: Google\nایمیل اکانت: customer@example.com',message:'سفارش تحویل شد.',delivery:'https://example.com/delivery/demo'}
+ ]
+};
+
+let selectedProduct=null, selectedPlan=null;
+let adminAuthenticated=false;
+const ADMIN_CONFIG_KEY='manoto_admin_security_v4';
+// رمز اولیه موقت؛ پس از ورود از بخش بازیابی، آن را به رمز شخصی خودت تغییر بده.
+const DEFAULT_ADMIN_PASSWORD='Manoto@1405';
+// پاسخ بازیابی پیچیده؛ در اولین اجرای این نسخه، رمز مدیریت قبلی حفظ می‌شود اما سؤال و پاسخ بازیابی به مقدار جدید منتقل می‌شوند.
+const DEFAULT_RECOVERY_ANSWER='Sormeh!Narenj-84_Qamar#731';
+const DEFAULT_RECOVERY_QUESTION='عبارت محرمانهٔ بازیابی فروشگاه چیست؟';
+function getAdminConfig(){
+ try{
+  let cfg=JSON.parse(localStorage.getItem(ADMIN_CONFIG_KEY)||'null');
+  if(!cfg){
+   const oldKeys=['manoto_admin_security_v3','manoto_admin_security_v2','manoto_admin_security_v1'];
+   let old=null;
+   for(const key of oldKeys){
+    try{old=JSON.parse(localStorage.getItem(key)||'null');}catch(_){}
+    if(old && typeof old.password==='string' && old.password) break;
+    old=null;
+   }
+   cfg={password:old?.password||DEFAULT_ADMIN_PASSWORD,question:DEFAULT_RECOVERY_QUESTION,answer:DEFAULT_RECOVERY_ANSWER};
+   localStorage.setItem(ADMIN_CONFIG_KEY,JSON.stringify(cfg));
+  }
+  if(!cfg || typeof cfg.password!=='string' || !cfg.password) cfg={password:DEFAULT_ADMIN_PASSWORD,question:DEFAULT_RECOVERY_QUESTION,answer:DEFAULT_RECOVERY_ANSWER};
+  return cfg;
+ }catch(e){return {password:DEFAULT_ADMIN_PASSWORD,question:DEFAULT_RECOVERY_QUESTION,answer:DEFAULT_RECOVERY_ANSWER}}
+}
+function saveAdminConfig(config){localStorage.setItem(ADMIN_CONFIG_KEY,JSON.stringify(config))}
+function normalizeAnswer(value){return String(value||'').trim().toLocaleLowerCase('fa-IR').replace(/[\u200c\s]+/g,' ').replace(/[ي]/g,'ی').replace(/[ك]/g,'ک')}
+function adminAuthScreen(mode='login',error=''){
+ const cfg=getAdminConfig();
+ const title=mode==='recovery'?'بازیابی رمز عبور':mode==='reset'?'تعیین رمز جدید':'ورود به پنل مدیریت';
+ let body='';
+ if(mode==='recovery'){
+  body=`<p style="font-size:13px;line-height:2;color:var(--muted)">برای تأیید هویت، پاسخ سؤال بازیابی را وارد کن: <b style="color:var(--text)">${escapeHtml(cfg.question)}</b></p><form class="form" onsubmit="checkRecovery(event)"><div class="field"><label>پاسخ سؤال بازیابی</label><input id="recoveryAnswer" required autocomplete="off" autofocus></div><button class="btn" type="submit">تأیید پاسخ</button></form><button class="btn light" onclick="adminAuthScreen('login')">بازگشت به ورود</button>`;
+ }else if(mode==='reset'){
+  body=`<p style="color:#067647;font-size:13px">پاسخ درست است. حالا رمز جدید را تعیین کن.</p><form class="form" onsubmit="resetAdminPassword(event)"><div class="field"><label>رمز جدید مدیریت</label><input id="resetPass" type="password" minlength="6" required autocomplete="new-password" autofocus></div><div class="field"><label>تکرار رمز جدید</label><input id="resetPass2" type="password" minlength="6" required autocomplete="new-password"></div><button class="btn" type="submit">ذخیره رمز جدید و ورود</button></form>`;
+ }else{
+  body=`<form class="form" onsubmit="loginAdmin(event)"><div class="field"><label>رمز عبور مدیریت</label><input id="adminPasswordInput" type="password" required autocomplete="current-password" autofocus placeholder="رمز مدیریت را وارد کن"></div><button class="btn" type="submit">ورود به مدیریت</button></form><button class="btn light" onclick="adminAuthScreen('recovery')">فراموش کردم رمز عبور</button>`;
+ }
+ document.getElementById('adminView').innerHTML=`<section style="max-width:460px;margin:26px auto"><button class="back" type="button" onclick="show('customerView')" style="margin-bottom:14px">بازگشت به منوی اصلی</button><div class="card" style="padding:clamp(22px,5vw,36px)"><div style="width:58px;height:58px;border-radius:18px;display:grid;place-items:center;background:#eef0ff;font-size:27px;margin-bottom:18px">🔐</div><h2 style="margin:0 0 8px">${title}</h2>${error?`<div style="padding:11px 13px;background:#fff1f0;border:1px solid #ffd6d2;color:#b42318;border-radius:12px;font-size:12px;margin:14px 0">${escapeHtml(error)}</div>`:''}${body}<p style="margin:20px 0 0;color:var(--muted);font-size:11px;line-height:1.9">این قفل فقط در همین مرورگر است و جایگزین احراز هویت امن سمت سرور نیست.</p></div></section>`;
+ show('adminView');
+}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function loginAdmin(e){e.preventDefault();const cfg=getAdminConfig();if(document.getElementById('adminPasswordInput').value===cfg.password){adminAuthenticated=true;admin();toast('ورود به پنل موفق بود')}else adminAuthScreen('login','رمز عبور اشتباه است.')}
+function checkRecovery(e){e.preventDefault();const cfg=getAdminConfig();if(normalizeAnswer(document.getElementById('recoveryAnswer').value)===normalizeAnswer(cfg.answer))adminAuthScreen('reset');else adminAuthScreen('recovery','پاسخ سؤال بازیابی صحیح نیست.')}
+function resetAdminPassword(e){e.preventDefault();const a=document.getElementById('resetPass').value,b=document.getElementById('resetPass2').value;if(a.length<8)return adminAuthScreen('reset','رمز باید حداقل ۸ کاراکتر باشد.');if(a!==b)return adminAuthScreen('reset','رمزها با هم مطابقت ندارند.');const cfg=getAdminConfig();saveAdminConfig({...cfg,password:a});adminAuthenticated=true;admin();toast('رمز مدیریت با موفقیت تغییر کرد')}
+function logoutAdmin(){adminAuthenticated=false;adminAuthScreen('login')}
+
+data.products.forEach(p=>{p.active=p.active!==false;p.formType=p.formType||(p.cat==='vpn'?'vpn':p.cat==='ai'?'ai':(p.cat==='game'||p.cat==='battle')?'game':'basic');p.customFields=p.customFields||[];p.plans.forEach(pl=>pl.active=pl.active!==false)});
+function money(n){return n.toLocaleString('fa-IR')+' تومان'}
+function show(id){
+ document.querySelectorAll('.view').forEach(x=>x.classList.add('hidden'));
+ document.getElementById(id).classList.remove('hidden');
+ window.scrollTo({top:0,behavior:'smooth'});
+}
+function toast(t){const x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),2200)}
+function renderCategories(){
+ document.getElementById('categories').innerHTML=data.categories.map(c=>`
+ <button class="card cat" onclick="filterCategory('${c.id}')"><span class="emoji">${c.icon}</span><b>${c.name}</b><small>${c.count} محصول</small></button>`).join('');
+}
+function renderProducts(){
+ const q=(document.getElementById('search')?.value||'').trim().toLowerCase();
+ const list=data.products.filter(p=>p.active!==false&&(!q||p.name.toLowerCase().includes(q)||p.desc.toLowerCase().includes(q)));
+ document.getElementById('products').innerHTML=list.map(p=>`
+ <article class="card product">
+  ${p.image ? `<img class="product-image" src="${p.image}" alt="${p.name}">` : `<div class="product-image-placeholder">${p.icon}</div>`}
+  <div class="product-head"><div class="product-icon">${p.image ? `<img src="${p.image}" alt="">` : p.icon}</div><div><h4>${p.name}</h4><small>${p.desc}</small></div></div>
+  <div class="price">${p.plans.some(x=>x.active!==false)?money(Math.min(...p.plans.filter(x=>x.active!==false).map(x=>x.price))):'بدون پلن'} <span>${p.plans.some(x=>x.active!==false)?'شروع قیمت':'پلن فعال ندارد'}</span></div>
+  <button type="button" class="btn light" onclick="openProduct('${p.id}')">مشاهده پلن‌ها</button>
+ </article>`).join('');
+}
+function filterCategory(cat){
+ const list=data.products.filter(p=>p.active!==false&&p.cat===cat);
+ document.getElementById('products').innerHTML=list.map(p=>`
+ <article class="card product">${p.image ? `<img class="product-image" src="${p.image}" alt="${p.name}">` : `<div class="product-image-placeholder">${p.icon}</div>`}<div class="product-head"><div class="product-icon">${p.image ? `<img src="${p.image}" alt="">` : p.icon}</div><div><h4>${p.name}</h4><small>${p.desc}</small></div></div>
+ <div class="price">${p.plans.some(x=>x.active!==false)?money(Math.min(...p.plans.filter(x=>x.active!==false).map(x=>x.price))):'بدون پلن'} <span>${p.plans.some(x=>x.active!==false)?'شروع قیمت':'پلن فعال ندارد'}</span></div>
+ <button class="btn" onclick="openProduct('${p.id}')">انتخاب پلن</button></article>`).join('');
+ document.getElementById('products').scrollIntoView({behavior:'smooth'});
+}
+function openProduct(id){
+ selectedProduct=data.products.find(p=>p.id===id);
+ document.getElementById('productView').innerHTML=`
+ <button class="back" onclick="show('customerView')">→ بازگشت</button>
+ <div class="card">
+  <div class="product-head"><div class="product-icon">${selectedProduct.icon}</div><div><h2 style="margin:0 0 5px">${selectedProduct.name}</h2><small>${selectedProduct.desc}</small></div></div>
+  <div class="section-title"><h3>پلن موردنظر را انتخاب کنید</h3><span>${selectedProduct.plans.filter(p=>p.active!==false).length} پلن</span></div>
+  <div class="plan-list">${selectedProduct.plans.filter(p=>p.active!==false).map(p=>`
+   <div class="plan"><div class="meta"><b>${p.name}</b><small>${money(p.price)} · موجودی ${p.stock} ${p.unit}</small></div>
+   <button class="btn" style="width:auto;margin:0;padding:10px 15px" onclick="startCheckout('${p.id}')">انتخاب</button></div>`).join('')}</div>
+ </div>`;
+ show('productView');
+}
+function getProductFormFields(product){
+ const type=product.formType||(product.cat==='vpn'?'vpn':product.cat==='ai'?'ai':(product.cat==='game'||product.cat==='battle')?'game':'basic');
+ let fields=[];
+ if(type==='vpn') fields=[{id:'vpnAccountName',label:'نام اکانت VPN',placeholder:'نام دلخواه برای اکانت VPN',required:true}];
+ else if(type==='ai') fields=[
+  {id:'loginMethod',label:'روش ورود اکانت',type:'select',options:['Google','ایمیل اکانت خودم','Apple','روش دیگر'],required:true},
+  {id:'accountEmail',label:'ایمیل اکانت',type:'email',placeholder:'name@example.com',required:true},
+  {id:'accountPassword',label:'رمز عبور اکانت',type:'password',placeholder:'رمز عبور اکانت',required:true},
+  {id:'accountUsername',label:'نام کاربری / شناسه اکانت (در صورت وجود)',placeholder:'نام کاربری اکانت',required:false}
+ ];
+ else if(type==='game') fields=[
+  {id:'playerId',label:'شناسه بازیکن / UID',placeholder:'شناسه داخل بازی',required:true},
+  {id:'loginPlatform',label:'پلتفرم یا روش ورود',type:'select',options:['Activision','Google','Apple','Facebook','PlayStation / Xbox','سایر'],required:true}
+ ];
+ (product.customFields||[]).forEach((item,i)=>{
+  const f=typeof item==='string'?{label:item,type:'text',required:false}:item;
+  fields.push({...f,id:f.id||('custom_'+i),type:f.type||'text',options:f.options||[],placeholder:f.placeholder||f.label,required:!!f.required});
+ });
+ return fields;
+}
+function renderProductFields(product){
+ const fields=getProductFormFields(product);
+ if(!fields.length) return '<div class="field"><label>توضیحات تکمیلی (اختیاری)</label><textarea id="orderNotes" placeholder="اطلاعاتی که برای انجام این محصول لازم است"></textarea></div>';
+ return fields.map(f=>`<div class="field"><label>${f.label}${f.required?' *':''}</label>${f.type==='select'?`<select id="pf_${f.id}" ${f.required?'required':''}><option value="">انتخاب کنید</option>${(f.options||[]).map(o=>`<option>${o}</option>`).join('')}</select>`:`<input id="pf_${f.id}" type="${['text','email','tel','number','password'].includes(f.type)?f.type:'text'}" placeholder="${f.placeholder||''}" ${f.required?'required':''}>`}</div>`).join('')+'<div class="field"><label>توضیحات تکمیلی (اختیاری)</label><textarea id="orderNotes" placeholder="نکته‌ای که ادمین باید بداند"></textarea></div>';
+}
+function startCheckout(pid){
+ selectedPlan=selectedProduct.plans.find(p=>p.id===pid);
+ if(!selectedPlan || selectedPlan.active===false || selectedPlan.stock<=0)return toast('این پلن فعلاً موجود نیست');
+ document.getElementById('checkoutView').innerHTML=`
+ <button class="back" onclick="openProduct('${selectedProduct.id}')">→ انتخاب پلن</button>
+ <div class="card">
+  <h2 style="margin-top:0">تکمیل سفارش</h2><div class="steps"><i class="step active"></i><i class="step active"></i><i class="step"></i></div>
+  <div class="summary"><div class="row"><span>محصول</span><b>${selectedProduct.name}</b></div><div class="row"><span>پلن</span><b>${selectedPlan.name}</b></div><div class="row total"><span>مبلغ</span><b>${money(selectedPlan.price)}</b></div></div>
+  <h3>۱. پرداخت کارت‌به‌کارت</h3><p style="font-size:12px;color:var(--muted);line-height:2">مبلغ سفارش را واریز کنید و تصویر واضح رسید را بارگذاری کنید.</p>
+  <div class="receipt"><strong>۶۰۳۷ • ۹۹۱۸ • ۱۲۳۴ • ۵۶۷۸</strong><small>به نام فروشگاه من و تو</small></div>
+  <h3>۲. اطلاعات مشتری</h3><div class="form">
+   <div class="field"><label>نام و نام خانوادگی *</label><input id="custName" required placeholder="نام شما"></div>
+   <div class="field"><label>آیدی تلگرام *</label><input id="custTelegram" required placeholder="@username"></div>
+   <div class="field"><label>شماره تماس *</label><input id="custPhone" required type="tel" placeholder="09xxxxxxxxx"></div>
+  </div>
+  <h3>۳. اطلاعات اختصاصی ${selectedProduct.name}</h3><div class="form">${renderProductFields(selectedProduct)}</div>
+  <h3>۴. تصویر رسید پرداخت *</h3><div class="form"><div class="field"><label>انتخاب عکس رسید</label><input type="file" id="receipt" accept="image/*" required></div></div>
+  <p style="font-size:11px;color:var(--muted);line-height:1.9">نکته امنیتی: رمز عبور اکانت برای سفارش‌های هوش مصنوعی اجباری است و در جزئیات سفارش ادمین نمایش داده می‌شود. این فایل HTML سامانه امن و رمزگذاری‌شده نیست؛ برای فروش واقعی، دریافت و نگهداری رمز عبور مشتری توصیه نمی‌شود.</p>
+  <button type="button" class="btn success" onclick="submitOrder()">ثبت سفارش و ارسال رسید</button>
+ </div>`;
+ show('checkoutView');
+}
+async function submitOrder(){
+ const name=document.getElementById('custName')?.value.trim(), username=document.getElementById('custTelegram')?.value.trim(), phone=document.getElementById('custPhone')?.value.trim();
+ const file=document.getElementById('receipt')?.files?.[0];
+ if(!name||!username||!phone)return toast('نام، آیدی تلگرام و شماره تماس را کامل کنید');
+ if(!file)return toast('لطفاً عکس رسید را انتخاب کنید');
+ if(!file.type.startsWith('image/'))return toast('فایل رسید باید عکس باشد');
+ const fields=getProductFormFields(selectedProduct), formData={};
+ for(const f of fields){const el=document.getElementById('pf_'+f.id);const val=el?.value?.trim()||'';if(f.required&&!val)return toast('لطفاً فیلد «'+f.label+'» را تکمیل کنید');if(val)formData[f.label]=val;}
+ const notes=document.getElementById('orderNotes')?.value.trim()||'';
+ const receiptData=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)}).catch(()=>null);
+ if(!receiptData)return toast('خواندن تصویر رسید ناموفق بود');
+ const order={id:'#MT-'+Math.floor(1000+Math.random()*8999),product:selectedProduct.name,productId:selectedProduct.id,plan:selectedPlan.name,amount:selectedPlan.price,status:'در انتظار بررسی',customer:{name,username:username.replace(/^@/,''),phone},receipt:receiptData,receiptName:file.name,formData,accountName:(getProductFormFields(selectedProduct).some(f=>f.id==='vpnAccountName')?(formData['نام اکانت VPN']||''):'') ,accountInfo:Object.entries(formData).map(([k,v])=>k+': '+v).join('\n'),description:notes,message:'',delivery:'',createdAt:new Date().toLocaleString('fa-IR')};
+ data.orders.unshift(order);selectedPlan.stock--;
+ document.getElementById('checkoutView').innerHTML=`<div class="card" style="text-align:center;padding:40px 22px"><div style="font-size:52px">✓</div><h2>سفارش ثبت شد</h2><p style="color:var(--muted);line-height:2">رسید و اطلاعات اختصاصی این محصول ثبت شد. ادمین سفارش را بررسی می‌کند.</p><p><b>شماره سفارش: ${order.id}</b></p><button class="btn" onclick="openOrders()">مشاهده سفارش‌ها</button></div>`;
+ show('checkoutView');toast('سفارش با موفقیت ثبت شد');
+}
+function openOrders(){
+ document.getElementById('ordersView').innerHTML=`<button class="back" onclick="show('customerView')">→ بازگشت</button><div class="section-title"><h2 style="margin:0">سفارش‌های من</h2><span>${data.orders.length} سفارش</span></div>
+ ${data.orders.map(o=>`<div class="card" style="margin-bottom:10px"><div class="row"><b>${o.product}</b><span class="status ${o.status==='تکمیل شده'?'ok':(o.status==='دریافت شد'?'ok':'pending')}">${o.status}</span></div><div style="color:var(--muted);font-size:12px;margin-top:9px">${o.id} · ${o.plan}</div><div class="price" style="font-size:15px">${money(o.amount)}</div></div>`).join('')}`;
+ show('ordersView');
+}
+function setProductImage(index,input){const file=input.files?.[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{data.products[index].image=e.target.result;admin();toast('عکس محصول ذخیره شد')};reader.readAsDataURL(file)}
+function removeProductImage(index){data.products[index].image='';admin();toast('عکس محصول حذف شد')}
+function adminSection(section, clicked){
+ const ids=['dashboard','orders','products','reports'];
+ ids.forEach(name=>document.getElementById('admin-'+name)?.classList.toggle('hidden',name!==section));
+ document.querySelectorAll('#adminNav .admin-nav').forEach(b=>b.classList.toggle('active',b===clicked));
+}
+
+function openProductModal(){
+  const modal=document.getElementById('productModal');
+  const select=document.getElementById('pmCat');
+  if(!modal || !select){toast('پنجره افزودن محصول پیدا نشد');return}
+  select.innerHTML=data.categories.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  document.getElementById('pmName').value='';
+  document.getElementById('pmDesc').value='';
+  document.getElementById('pmIcon').value='✦';
+  document.getElementById('pmImage').value='';
+  document.getElementById('pmFormType').value='auto';
+  document.getElementById('pmCustomFields').value='';
+  modal.classList.remove('hidden');
+}
+function closeProductModal(){
+  document.getElementById('productModal')?.classList.add('hidden');
+}
+function createProductFromModal(){
+  const name=document.getElementById('pmName').value.trim();
+  const desc=document.getElementById('pmDesc').value.trim() || 'محصول جدید';
+  const cat=document.getElementById('pmCat').value;
+  const icon=document.getElementById('pmIcon').value.trim() || '✦';
+  const file=document.getElementById('pmImage').files?.[0];
+  let formType=document.getElementById('pmFormType').value;
+  if(formType==='auto') formType=cat==='vpn'?'vpn':cat==='ai'?'ai':(cat==='game'||cat==='battle')?'game':'basic';
+  const customFields=parseCustomFields(document.getElementById('pmCustomFields').value);
+
+  if(!name){toast('نام محصول را وارد کنید');return}
+  if(!cat){toast('دسته‌بندی را انتخاب کنید');return}
+
+  const finish=(image)=>{
+    const id='product_'+Date.now();
+    data.products.push({
+      id,cat,name,icon,image:image||'',desc,formType,customFields,
+      plans:[{id:id+'_plan_1',name:'پلن پایه',price:0,stock:0,unit:'مورد',active:true}]
+    });
+    const category=data.categories.find(c=>c.id===cat);
+    if(category) category.count=(category.count||0)+1;
+
+    closeProductModal();
+    admin();
+    setTimeout(()=>{
+      const btn=document.querySelector('#adminNav button[data-section="products"]');
+      if(btn) adminSection('products',btn);
+    },30);
+    toast('محصول با موفقیت اضافه شد');
+  };
+
+  if(file){
+    if(!file.type.startsWith('image/')){toast('فایل انتخاب‌شده تصویر نیست');return}
+    const reader=new FileReader();
+    reader.onload=e=>finish(e.target.result);
+    reader.onerror=()=>toast('خواندن تصویر انجام نشد');
+    reader.readAsDataURL(file);
+  }else finish('');
+}
+
+
+function parseCustomFields(raw){
+ return String(raw||'').split('\n').map(line=>line.trim()).filter(Boolean).map((line,i)=>{
+  const parts=line.split('|').map(x=>x.trim());
+  const label=parts[0];
+  const rawType=(parts[1]||'text').toLowerCase();
+  const type=['text','email','tel','number','password','select'].includes(rawType)?rawType:'text';
+  const required=(parts[2]||'').includes('اجباری') && !(parts[2]||'').includes('اختیاری');
+  const options=type==='select'?(parts[3]||'').split(',').map(x=>x.trim()).filter(Boolean):[];
+  return {id:'custom_'+Date.now()+'_'+i,label,type,required,options,placeholder:label};
+ });
+}
+let editingFormProductIndex=null;
+function openFormEditor(index){
+ const p=data.products[index];if(!p)return;
+ editingFormProductIndex=index;
+ document.getElementById('formEditorSubtitle').textContent='محصول: '+p.name;
+ document.getElementById('feType').value=p.formType||((p.cat==='vpn')?'vpn':p.cat==='ai'?'ai':(p.cat==='game'||p.cat==='battle')?'game':'basic');
+ document.getElementById('feFields').value=(p.customFields||[]).map(f=>{
+  if(typeof f==='string')return f;
+  return [f.label||'',f.type||'text',f.required?'اجباری':'اختیاری',(f.options||[]).join(',')].join(' | ');
+ }).join('\n');
+ document.getElementById('formEditorModal').classList.remove('hidden');
+}
+function closeFormEditor(){document.getElementById('formEditorModal')?.classList.add('hidden');editingFormProductIndex=null;}
+function saveProductFormSettings(){
+ const i=editingFormProductIndex,p=data.products[i];if(!p)return;
+ p.formType=document.getElementById('feType').value;
+ p.customFields=parseCustomFields(document.getElementById('feFields').value);
+ closeFormEditor();admin();
+ setTimeout(()=>{const b=document.querySelector('#adminNav button[data-section="products"]');if(b)adminSection('products',b)},30);
+ toast('فرم اختصاصی محصول ذخیره شد');
+}
+
+
+let activeOrderIndex = null;
+
+function ensureOrderFields(o){
+  if(!o.customer) o.customer={name:'مشتری',username:'customer_demo',phone:'—'};
+  if(!o.receipt) o.receipt='receipt-demo.jpg';
+  if(!o.accountInfo) o.accountInfo='';
+  if(!o.accountName && o.product==='VPN') o.accountName='vpn_user_demo';
+  if(!o.description) o.description='';
+  if(!o.message) o.message='';
+  if(!o.delivery) o.delivery='';
+  if(!o.status) o.status='در انتظار بررسی';
+}
+
+function openOrderDetails(index){
+  const o=data.orders[index];
+  if(!o){toast('سفارش پیدا نشد');return}
+  ensureOrderFields(o);
+  activeOrderIndex=index;
+
+  const modal=document.getElementById('orderModal');
+  const body=document.getElementById('orderDetailsBody');
+  document.getElementById('omSub').textContent=`${o.id} · ${o.product} · ${o.plan}`;
+
+  const statusText = o.status==='در انتظار بررسی' ? 'در انتظار بررسی' :
+                     o.status==='دریافت شد' ? 'در حال انجام' :
+                     o.status==='تکمیل شده' ? 'تحویل شد' : o.status;
+
+  body.innerHTML=`
+    <div class="stats" style="margin-bottom:14px">
+      <div class="card stat"><small>محصول</small><strong style="font-size:16px">${o.product}</strong></div>
+      <div class="card stat"><small>پلن</small><strong style="font-size:16px">${o.plan}</strong></div>
+      <div class="card stat"><small>مبلغ</small><strong style="font-size:16px">${money(o.amount)}</strong></div>
+      <div class="card stat"><small>وضعیت</small><strong style="font-size:16px">${statusText}</strong></div>
+    </div>
+
+    <div class="section-title"><h3>اطلاعات مشتری</h3><span>اطلاعات لازم برای انجام سفارش</span></div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="row"><span>نام</span><b>${o.customer.name}</b></div>
+      <div class="row"><span>آیدی تلگرام</span><b dir="ltr">@${String(o.customer.username).replace('@','')}</b></div>
+      <div class="row"><span>شماره تماس</span><b>${o.customer.phone}</b></div>
+      ${Object.keys(o.formData||{}).length ? `
+        <div class="section-title" style="margin-top:18px"><h3>اطلاعات اختصاصی ${o.product}</h3><span>بر اساس فرم همین محصول</span></div>
+        ${(Object.entries(o.formData||{})).map(([k,v])=>`<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)"><span>${k}</span><b style="max-width:65%;text-align:left;overflow-wrap:anywhere;white-space:pre-wrap">${String(v??'')}</b></div>`).join('')}
+        ${((o.productId && data.products.find(p=>p.id===o.productId)?.cat==='ai') || ['ChatGPT','Gemini','Claude'].includes(o.product)) && !Object.keys(o.formData||{}).some(k=>k.toLowerCase().includes('رمز عبور')) ? `<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)"><span>رمز عبور اکانت</span><b style="color:#b45309">برای این سفارش ثبت نشده است (سفارش قدیمی)</b></div>` : ''}
+      ` : (o.accountInfo ? `<div style="margin-top:12px"><b>اطلاعات اختصاصی محصول</b><pre style="white-space:pre-wrap;font:inherit;line-height:1.9;background:#f7f8fc;padding:12px;border-radius:12px">${o.accountInfo}</pre></div>` : '<p style="color:var(--muted);font-size:12px">برای این سفارش اطلاعات اختصاصی ثبت نشده است.</p>')}
+      ${o.product==='VPN' ? `<div style="margin-top:10px;padding:11px 13px;border-radius:14px;background:#f7f8fc;color:var(--muted);font-size:12px;line-height:1.9">نام اکانت فقط برای VPN استفاده می‌شود.</div>` : ''}
+    </div>
+
+    <div class="section-title"><h3>رسید پرداخت</h3><span>عکس رسید مشتری</span></div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div><b>رسید پرداخت</b><div style="font-size:12px;color:var(--muted);margin-top:5px">${o.receiptName||'تصویر رسید سفارش'}</div></div>
+        <button type="button" class="btn light" style="width:auto;margin:0" onclick="viewReceipt()">🧾 مشاهده رسید</button>
+      </div>
+      ${o.receipt && String(o.receipt).startsWith('data:image') ? `<img src="${o.receipt}" alt="رسید پرداخت" style="display:block;max-width:100%;max-height:320px;object-fit:contain;border-radius:14px;margin-top:14px">` : ''}
+      ${o.description ? `<div style="margin-top:14px;padding:12px;background:#f7f8fc;border-radius:14px;line-height:1.9;font-size:13px"><b>توضیحات مشتری:</b><br>${o.description}</div>` : ''}
+    </div>
+
+    <div class="section-title"><h3>ارتباط با مشتری</h3><span>ارسال پیام</span></div>
+    <div class="card" style="margin-bottom:14px">
+      <div class="field"><label>پیام</label><textarea id="orderMessage" placeholder="مثلاً رسید شما دریافت شد و سفارش شما در حال انجام است...">${o.message||''}</textarea></div>
+      <button type="button" class="btn light" onclick="sendCustomerMessage()">💬 ارسال پیام به مشتری</button>
+      <div style="margin-top:10px;color:var(--muted);font-size:12px">در نسخه واقعی این بخش به چت تلگرام/ربات متصل می‌شود؛ در این HTML پیام به سابقه سفارش اضافه می‌شود.</div>
+    </div>
+
+    <div class="section-title"><h3>تحویل دستی</h3><span>لینک را خودت وارد کن</span></div>
+    <div class="card">
+      <div class="field"><label>لینک یا اطلاعات محصول</label><textarea id="deliveryInfo" placeholder="لینک VPN، لینک اشتراک یا اطلاعات تحویل را دستی وارد کن">${o.delivery||''}</textarea></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${o.status==='در انتظار بررسی' ? `<button type="button" class="btn" onclick="markOrderReceived()">✓ دریافت شد</button>` : ''}
+        ${o.status==='دریافت شد' ? `<button type="button" class="btn success" onclick="completeOrder()">✓ کار تمام شد و ارسال به مشتری</button>` : ''}
+        ${o.status==='تکمیل شده' ? `<span class="status ok" style="padding:10px 14px">✓ لینک برای مشتری ارسال شد</span>` : ''}
+      </div>
+    </div>
+  `;
+  modal.classList.remove('hidden');
+}
+
+function closeOrderDetails(){
+  document.getElementById('orderModal')?.classList.add('hidden');
+  activeOrderIndex=null;
+}
+
+function sendCustomerMessage(){
+  if(activeOrderIndex===null)return;
+  const o=data.orders[activeOrderIndex];
+  o.message=document.getElementById('orderMessage')?.value||'';
+  toast('پیام در سابقه سفارش ذخیره شد؛ ارسال واقعی تلگرام به بک‌اند نیاز دارد');
+}
+
+function markOrderReceived(){
+  if(activeOrderIndex===null)return;
+  const o=data.orders[activeOrderIndex];
+  o.status='دریافت شد';
+  ensureOrderFields(o);
+  o.message='رسید پرداخت شما دریافت شد. سفارش شما در حال انجام است.';
+  openOrderDetails(activeOrderIndex);
+  toast('وضعیت سفارش: در حال انجام');
+}
+
+function completeOrder(){
+  if(activeOrderIndex===null)return;
+  const o=data.orders[activeOrderIndex];
+  const delivery=document.getElementById('deliveryInfo')?.value?.trim();
+  if(!delivery){
+    toast('قبل از پایان کار، لینک یا اطلاعات تحویل را وارد کنید');
+    return;
+  }
+  o.delivery=delivery;
+  o.status='تکمیل شده';
+  o.message='سفارش شما آماده است و لینک/اطلاعات محصول برای شما ارسال شد.';
+  openOrderDetails(activeOrderIndex);
+  toast('سفارش تکمیل شد و محصول برای مشتری ارسال می‌شود');
+}
+
+function viewReceipt(){
+  const o=data.orders[activeOrderIndex];
+  if(!o)return;
+  // Demo receipt viewer; replace receipt-demo.jpg with the actual uploaded receipt path later.
+  const w=window.open('','_blank','width=600,height=700');
+  if(!w){toast('مرورگر اجازه باز شدن رسید را نداد');return}
+  w.document.write(`<html dir="rtl"><head><title>رسید ${o.id}</title><meta charset="utf-8"><style>body{font-family:Tahoma,sans-serif;padding:30px;text-align:center;background:#f6f7fb}img{max-width:100%;max-height:75vh;border-radius:16px}p{color:#667085}</style></head><body><h2>رسید پرداخت</h2><p>${o.receiptName||o.id}</p>${o.receipt&&String(o.receipt).startsWith('data:image')?`<img src="${o.receipt}" alt="رسید">`:'<p>برای این سفارش تصویر واقعی ذخیره نشده است (سفارش نمونه قدیمی).</p>'}</body></html>`);
+  w.document.close();
+}
+
+
+function openCustomerOrderForm(isVPN=true){
+  const wrap=document.getElementById('cfVpnNameWrap');
+  if(wrap) wrap.style.display=isVPN?'block':'none';
+  document.getElementById('customerOrderForm')?.classList.remove('hidden');
+}
+function closeCustomerOrderForm(){
+  document.getElementById('customerOrderForm')?.classList.add('hidden');
+}
+function submitCustomerOrder(){
+  const name=document.getElementById('cfName')?.value.trim();
+  const username=document.getElementById('cfTelegram')?.value.trim();
+  const phone=document.getElementById('cfPhone')?.value.trim();
+  const vpnName=document.getElementById('cfVpnName')?.value.trim();
+  const receipt=document.getElementById('cfReceipt')?.files?.[0];
+  const description=document.getElementById('cfDescription')?.value.trim()||'';
+  if(!name||!username||!phone){toast('نام، آیدی تلگرام و شماره تماس الزامی است');return}
+  const vpnVisible=document.getElementById('cfVpnNameWrap')?.style.display!=='none';
+  if(vpnVisible&&!vpnName){toast('نام اکانت VPN را وارد کنید');return}
+  if(!receipt){toast('عکس رسید را انتخاب کنید');return}
+  toast('اطلاعات و رسید برای ادمین ارسال شد');
+  closeCustomerOrderForm();
+}
+
+
+let activePlanProductIndex=null;
+
+function openPlanModal(productIndex){
+  const p=data.products[productIndex];
+  if(!p){toast('محصول پیدا نشد');return}
+  activePlanProductIndex=productIndex;
+  document.getElementById('planModalProduct').textContent=`محصول: ${p.name}`;
+  document.getElementById('plName').value='';
+  document.getElementById('plPrice').value='';
+  document.getElementById('plStock').value='0';
+  document.getElementById('plUnit').value='مورد';
+  document.getElementById('planModal').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('plName')?.focus(),40);
+}
+function closePlanModal(){
+  document.getElementById('planModal')?.classList.add('hidden');
+  activePlanProductIndex=null;
+}
+function createPlanFromModal(){
+  const i=activePlanProductIndex;
+  if(i===null || !data.products[i]){toast('محصول پیدا نشد');return}
+  const name=document.getElementById('plName').value.trim();
+  const price=Number(document.getElementById('plPrice').value)||0;
+  const stock=Math.max(0,Number(document.getElementById('plStock').value)||0);
+  const unit=document.getElementById('plUnit').value.trim()||'مورد';
+
+  if(!name){toast('نام پلن را وارد کنید');return}
+  if(price<=0){toast('قیمت پلن را وارد کنید');return}
+
+  const p=data.products[i];
+  p.plans.push({
+    id:p.id+'_plan_'+Date.now(),
+    name,price,stock,unit,active:true
+  });
+
+  closePlanModal();
+  admin();
+  setTimeout(()=>{
+    const btn=document.querySelector('#adminNav button[data-section="products"]');
+    if(btn) adminSection('products',btn);
+  },30);
+  toast('پلن با موفقیت ساخته شد');
+}
+
+function refreshAdminProducts(message){
+  admin();
+  const btn=document.querySelector('#adminNav button[data-section="products"]');
+  if(btn) adminSection('products',btn);
+  renderProducts();
+  if(message) toast(message);
+}
+
+function togglePlan(productIndex,planIndex){
+  const p=data.products[productIndex];
+  const pl=p?.plans?.[planIndex];
+  if(!p||!pl)return;
+  pl.active=pl.active===false;
+  refreshAdminProducts(pl.active?'پلن فعال شد و در فروشگاه نمایش داده می‌شود':'پلن غیرفعال شد و از فروشگاه پنهان شد');
+}
+
+function deletePlan(productIndex,planIndex){
+  const p=data.products[productIndex];
+  const pl=p?.plans?.[planIndex];
+  if(!p||!pl)return;
+  if(!confirm(`پلن «${pl.name}» برای همیشه حذف شود؟ این کار قابل بازگشت نیست.`))return;
+  p.plans.splice(planIndex,1);
+  refreshAdminProducts('پلن حذف شد');
+}
+
+function toggleProduct(index){
+  const p=data.products[index];
+  if(!p)return;
+  p.active=p.active===false;
+  refreshAdminProducts(p.active?'محصول فعال شد و دوباره در صفحه فروشگاه نمایش داده می‌شود':'محصول غیرفعال شد و از صفحه فروشگاه پنهان شد');
+}
+
+function deleteProduct(index){
+  const p=data.products[index];
+  if(!p)return;
+  if(!confirm(`محصول «${p.name}» و تمام پلن‌های آن حذف کامل شوند؟ این کار قابل بازگشت نیست.`))return;
+  data.products.splice(index,1);
+  refreshAdminProducts('محصول و تمام پلن‌های آن حذف شدند');
+}
+
+function admin(){
+ if(!adminAuthenticated){adminAuthScreen('login');return;}
+ document.getElementById('adminView').innerHTML=`
+ <div class="admin">
+  <aside class="side"><h3>مدیریت فروشگاه</h3>
+   <div class="nav" id="adminNav">
+    <button class="admin-nav active" data-section="dashboard" onclick="adminSection('dashboard',this)">▦ داشبورد</button>
+    <button class="admin-nav" data-section="orders" onclick="adminSection('orders',this)">🧾 سفارش‌ها</button>
+    <button class="admin-nav" data-section="products" onclick="adminSection('products',this)">◈ محصولات</button>
+    <button class="admin-nav" data-section="reports" onclick="adminSection('reports',this)">⌁ گزارش‌ها</button>
+    <button class="admin-nav exit" onclick="logoutAdmin()">🔒 خروج از پنل</button>
+   </div>
+  </aside>
+  <section class="admin-main">
+   <div class="topbar"><div><h2 style="margin:0">مدیریت فروشگاه</h2><small style="color:var(--muted)">کنترل کامل فروشگاه</small></div><button class="back" style="margin:0" onclick="logoutAdmin()">خروج از پنل ↗</button></div>
+
+   <div id="admin-dashboard">
+    <div class="stats">
+     <div class="card stat"><small>فروش امروز</small><strong>۲٫۸M</strong></div>
+     <div class="card stat"><small>سفارش جدید</small><strong>۸</strong></div>
+     <div class="card stat"><small>محصول فعال</small><strong>${data.products.length}</strong></div>
+     <div class="card stat"><small>موجودی کل</small><strong>۹۷</strong></div>
+    </div>
+    <div class="section-title"><h3>خلاصه سفارش‌ها</h3><span>آخرین وضعیت</span></div>
+    <div class="card"><p style="margin:0;color:var(--muted);font-size:13px">برای مشاهده جزئیات کامل سفارش‌ها، از منوی «سفارش‌ها» استفاده کنید.</p></div>
+   </div>
+
+   <div id="admin-orders" class="hidden">
+    <div class="section-title"><div><h3>سفارش‌ها</h3><span>مدیریت سفارش و ارتباط با مشتری</span></div><span>${data.orders.length} سفارش</span></div>
+    <div class="card table-wrap"><table class="table"><thead><tr><th>شناسه</th><th>محصول</th><th>پلن</th><th>مبلغ</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>
+    ${data.orders.map((o,i)=>`<tr>
+      <td>${o.id}</td><td>${o.product}</td><td>${o.plan}</td><td>${money(o.amount)}</td>
+      <td><span class="status ${o.status==='تکمیل شده'?'ok':(o.status==='دریافت شد'?'ok':'pending')}">${o.status}</span></td>
+      <td><button type="button" class="btn light" style="width:auto;margin:0;padding:8px 13px" onclick="openOrderDetails(${i})">جزئیات</button></td>
+    </tr>`).join('')}
+    </tbody></table></div>
+   </div>
+
+   <div id="admin-products" class="hidden">
+    <div class="section-title">
+      <div><h3>محصولات</h3><span>ساخت و مدیریت محصولات و پلن‌ها</span></div>
+      <button class="btn" style="width:auto;margin:0;padding:9px 14px" onclick="openProductModal()">＋ افزودن محصول</button>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-size:12px;color:var(--muted);line-height:2">
+        از این بخش محصول را خودت می‌سازی. بعد از ساخت، می‌توانی برای آن پلن‌های مختلف، قیمت و موجودی تعریف کنی.
+      </div>
+    </div>
+    <div class="products" style="grid-template-columns:repeat(2,1fr)">
+      ${data.products.map((p,i)=>`<div class="card product admin-product-card ${p.active===false?'is-inactive':''}">
+        ${p.image ? `<img class="product-image" src="${p.image}" alt="${p.name}">` : `<div class="product-image-placeholder">${p.icon}</div>`}
+        <div class="product-head">
+          <div class="product-icon">${p.image ? `<img src="${p.image}" alt="">` : p.icon}</div>
+          <div><h4>${p.name}</h4><small>${p.desc}</small></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:16px"><div class="price" style="margin:0">${p.plans.length} <span>پلن</span></div><span class="product-status ${p.active===false?'inactive':''}">${p.active===false?'● غیرفعال':'● فعال'}</span></div>
+        <div class="plan-list">
+          ${p.plans.length?p.plans.map((pl,pi)=>`<div class="plan" style="${pl.active===false?'background:#fcfcfd;border-style:dashed;':''}">
+            <div class="meta"><b>${pl.name}</b><small>${money(pl.price)} · موجودی ${pl.stock}</small></div>
+            <span class="pill ${pl.active===false?'inactive':''}">${pl.active===false ? 'غیرفعال' : (pl.stock > 0 ? 'موجود' : 'ناموجود')}</span>
+            <div class="plan-actions">
+              <button type="button" class="mini-btn ${pl.active===false?'success':''}" onclick="togglePlan(${i},${pi})">${pl.active===false?'✓ فعال‌سازی':'Ⅱ غیرفعال'}</button>
+              <button type="button" class="mini-btn danger" onclick="deletePlan(${i},${pi})">⌫ حذف</button>
+            </div>
+          </div>`).join(''):'<div style="padding:18px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px;font-size:12px">هنوز پلنی برای این محصول ثبت نشده است.</div>'}
+        </div>
+        <div class="product-actions">
+          <label class="product-action" style="cursor:pointer">📷 عکس
+            <input type="file" accept="image/*" style="display:none" onchange="setProductImage(${i},this)">
+          </label>
+          <button type="button" class="product-action" onclick="openPlanModal(${i})">＋ افزودن پلن</button>
+          <button type="button" class="product-action" onclick="openFormEditor(${i})">⚙ تنظیم فرم</button>
+          <button type="button" class="product-action ${p.active===false?'is-success':''}" onclick="toggleProduct(${i})">${p.active===false?'✓ فعال‌سازی محصول':'Ⅱ غیرفعال‌کردن'}</button>
+          <button type="button" class="product-action is-danger" onclick="deleteProduct(${i})">⌫ حذف کامل محصول</button>
+        </div>
+      </div>`).join('')}
+      ${data.products.length?'':'<div class="card" style="grid-column:1/-1;text-align:center;padding:35px;color:var(--muted)">هنوز محصولی ساخته نشده است. از دکمه «افزودن محصول» استفاده کنید.</div>'}
+    </div>
+   </div>
+<div id="admin-reports" class="hidden">
+    <div class="section-title"><h3>گزارش‌ها</h3><span>نمای کلی</span></div>
+    <div class="stats">
+     <div class="card stat"><small>کل سفارش‌ها</small><strong>${data.orders.length+42}</strong></div>
+     <div class="card stat"><small>تکمیل‌شده</small><strong>${data.orders.filter(o=>o.status==='تکمیل شده').length+38}</strong></div>
+     <div class="card stat"><small>در انتظار</small><strong>${data.orders.filter(o=>o.status!=='تکمیل شده').length+4}</strong></div>
+     <div class="card stat"><small>نرخ تکمیل</small><strong>91٪</strong></div>
+    </div>
+   </div>
+  </section>
+ </div>`;
+ show('adminView');
+}
+function approve(i){data.orders[i].status='تکمیل شده';admin();toast('سفارش تأیید شد');}
+renderCategories();renderProducts();
+
+// دسترسی به پنل مدیریت با میانبر Alt+A؛ ورود همیشه از صفحه رمز عبور عبور می‌کند.
+document.addEventListener('keydown',e=>{if(e.altKey&&e.key.toLowerCase()==='a')admin()});
+</script>
+</body>
+</html>
