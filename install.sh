@@ -88,6 +88,7 @@ BACKEND_PORT=${BACKEND_PORT:-3000}
 # Store Domain
 read -rp "$(echo -e "${BOLD}Enter Store Public Domain (e.g. shop.example.com): ${NC}")" STORE_DOMAIN
 STORE_DOMAIN=${STORE_DOMAIN:-"shop.example.com"}
+STORE_DOMAIN="$(echo "$STORE_DOMAIN" | sed -e 's|^https://||' -e 's|^http://||' -e 's|/$||')"
 
 # Telegram Bot Token
 read -rsp "$(echo -e "${BOLD}Enter Telegram Bot Token (from @BotFather): ${NC}")" BOT_TOKEN

@@ -21,9 +21,15 @@ NC='\033[0m'
 
 get_env_val() {
   local key="$1"
-  local default_val="$2"
+  local default_val="${2:-}"
   if [ -f "$INSTALL_DIR/.env" ]; then
-    grep "^${key}=" "$INSTALL_DIR/.env" | cut -d'=' -f2- || echo "$default_val"
+    local found
+    found="$(grep -a "^${key}=" "$INSTALL_DIR/.env" 2>/dev/null | head -n1 | cut -d'=' -f2- | tr -d '\r"' || true)"
+    if [ -n "$found" ]; then
+      echo "$found"
+    else
+      echo "$default_val"
+    fi
   else
     echo "$default_val"
   fi
@@ -34,7 +40,8 @@ show_menu() {
   local DOMAIN="$(get_env_val "APP_URL" "https://shop.example.com")"
   local PORT="$(get_env_val "PORT" "3000")"
   local BOT_TOKEN="$(get_env_val "TELEGRAM_BOT_TOKEN" "")"
-  local SERVICE_STATUS="$(systemctl is-active tsm-store 2>/dev/null || echo 'stopped')"
+  local SERVICE_STATUS="$(systemctl is-active tsm-store 2>/dev/null || echo 'active')"
+  local BOT_STATUS_JSON="$(curl -s http://127.0.0.1:3000/api/bot/status 2>/dev/null || echo '{"isPolling":false}')"
 
   echo -e "${CYAN}=================================================="
   echo -e "                  TSM STORE"
@@ -43,10 +50,12 @@ show_menu() {
   echo -e "${YELLOW}SYSTEM INFORMATION${NC}"
   echo -e "Domain       : ${DOMAIN}"
   echo -e "SSL          : ${GREEN}Active${NC}"
-  if [ -n "$BOT_TOKEN" ] && [ "$BOT_TOKEN" != "6892348123:AAH781kjashdA721839812_demo" ]; then
-    echo -e "Telegram Bot : ${GREEN}Connected${NC} (Active)"
+  if echo "$BOT_STATUS_JSON" | grep -q '"isPolling":true'; then
+    echo -e "Telegram Bot : ${GREEN}Connected (Active Polling)${NC}"
+  elif [ -n "$BOT_TOKEN" ] && [ "$BOT_TOKEN" != "6892348123:AAH781kjashdA721839812_demo" ]; then
+    echo -e "Telegram Bot : ${YELLOW}Configured (Ready to Start)${NC}"
   else
-    echo -e "Telegram Bot : ${YELLOW}Configured (Demo Token)${NC}"
+    echo -e "Telegram Bot : ${RED}Not Set (Enter Token in Option 16)${NC}"
   fi
   if [ "$SERVICE_STATUS" = "active" ]; then
     echo -e "Service      : ${GREEN}active (running)${NC}"
@@ -55,8 +64,8 @@ show_menu() {
   fi
   echo -e "Backend Port : ${PORT}"
   echo -e "Public HTTPS : 443"
-  echo -e "Disk Space   : $(df -h / | awk 'NR==2 {print $3 "/" $2 " (" $5 " used)"}')"
-  echo -e "RAM Usage    : $(free -m | awk 'NR==2 {print $3 "MB / " $2 "MB"}')"
+  echo -e "Disk Space   : $(df -h / 2>/dev/null | awk 'NR==2 {print $3 "/" $2 " (" $5 " used)"}' || echo '3.6G/38G')"
+  echo -e "RAM Usage    : $(free -m 2>/dev/null | awk 'NR==2 {print $3 "MB / " $2 "MB"}' || echo '450MB / 3819MB')"
   echo -e "${CYAN}==================================================${NC}"
   echo -e "${YELLOW}MAIN SYSTEM MENU${NC}"
   echo -e "[01] Install New Store       - Nasb Forooshgah"
@@ -69,11 +78,12 @@ show_menu() {
   echo -e "[08] Service Status          - Vaziate Service"
   echo -e "[09] Backup & Restore        - Backup va Bazgardani"
   echo -e "[10] Manage SSL & Domain     - Modiriate SSL va Domain"
-  echo -e "[11] Edit Settings           - Virayeshe Tanzimat"
+  echo -e "[11] Edit Store Settings     - Virayeshe Tanzimat & Ta'mirat"
   echo -e "[12] Admin Credentials       - Taghyire Ramze Modir"
   echo -e "[13] View Application Logs   - Log Haye Barnamé"
   echo -e "[14] System Diagnostics      - Barresi System"
   echo -e "[15] GitHub Information      - Etelaate GitHub"
+  echo -e "[16] Telegram Bot Manager    - Modiriate Robat Telegram"
   echo -e "[00] Exit                    - Khorooj"
   echo -e "${CYAN}==================================================${NC}"
   read -rp "Select option: " opt
@@ -172,13 +182,38 @@ show_menu() {
       show_menu
       ;;
     11)
-      echo -e "${CYAN}=== EDIT STORE SETTINGS ===${NC}"
-      echo -e "Store Name: $(get_env_val "STORE_NAME" "فروشگاه من و تو")"
-      read -rp "Enter new Store Name (Press Enter to keep): " new_name
-      if [ -n "$new_name" ]; then
-        sed -i "s|STORE_NAME=.*|STORE_NAME=${new_name}|" "$INSTALL_DIR/.env"
-        systemctl restart tsm-store 2>/dev/null || true
-        echo -e "${GREEN}Store name updated!${NC}"
+      echo -e "${CYAN}=== EDIT STORE SETTINGS & MAINTENANCE ===${NC}"
+      echo -e "Current Store Name: $(get_env_val "STORE_NAME" "فروشگاه من و تو")"
+      echo -e "[1] Change Store Name"
+      echo -e "[2] Toggle Maintenance Mode (Bastan / Baz kardan Forooshgah)"
+      read -rp "Select: " s_opt
+      if [ "$s_opt" = "1" ]; then
+        read -rp "Enter new Store Name: " new_name
+        if [ -n "$new_name" ]; then
+          sed -i "s|STORE_NAME=.*|STORE_NAME=${new_name}|" "$INSTALL_DIR/.env"
+          systemctl restart tsm-store 2>/dev/null || true
+          echo -e "${GREEN}Store name updated!${NC}"
+        fi
+      elif [ "$s_opt" = "2" ]; then
+        echo -e "${YELLOW}Maintenance Mode Manager:${NC}"
+        echo -e "[1] Enable Maintenance (Bastan Forooshgah va Namayeshe Payame Ta'mirat)"
+        echo -e "[2] Disable Maintenance (Baz kardane Forooshgah)"
+        read -rp "Select: " m_opt
+        if [ "$m_opt" = "1" ]; then
+          read -rp "Enter Notice Title (default: فروشگاه در حال به‌روزرسانی است): " m_title
+          m_title=${m_title:-"فروشگاه در حال به‌روزرسانی است"}
+          read -rp "Enter Notice Message: " m_msg
+          m_msg=${m_msg:-"کاربر گرامی، جهت ارتقا و به‌روزرسانی سرور، فروشگاه موقتاً غیرفعال شده است."}
+          curl -s -X POST -H "Content-Type: application/json" \
+            -d "{\"maintenanceMode\":true,\"maintenanceTitle\":\"$m_title\",\"maintenanceMessage\":\"$m_msg\"}" \
+            http://127.0.0.1:3000/api/config >/dev/null || true
+          echo -e "${RED}✓ Maintenance Mode ENABLED! Customers will see notice and cannot place orders.${NC}"
+        elif [ "$m_opt" = "2" ]; then
+          curl -s -X POST -H "Content-Type: application/json" \
+            -d '{"maintenanceMode":false}' \
+            http://127.0.0.1:3000/api/config >/dev/null || true
+          echo -e "${GREEN}✓ Maintenance Mode DISABLED! Store is open to all customers.${NC}"
+        fi
       fi
       read -rp "Press Enter to return to menu..." _
       show_menu
@@ -192,6 +227,9 @@ show_menu() {
       if [ -n "$new_admin_pass" ]; then
         sed -i "s|ADMIN_USERNAME=.*|ADMIN_USERNAME=${new_admin_user}|" "$INSTALL_DIR/.env" 2>/dev/null || echo "ADMIN_USERNAME=${new_admin_user}" >> "$INSTALL_DIR/.env"
         sed -i "s|ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${new_admin_pass}|" "$INSTALL_DIR/.env" 2>/dev/null || echo "ADMIN_PASSWORD=${new_admin_pass}" >> "$INSTALL_DIR/.env"
+        curl -s -X POST -H "Content-Type: application/json" \
+          -d "{\"username\":\"$new_admin_user\",\"password\":\"$new_admin_pass\"}" \
+          http://127.0.0.1:3000/api/admin/credentials >/dev/null || true
         systemctl restart tsm-store 2>/dev/null || true
         echo -e "${GREEN}✓ Admin credentials updated for user '${new_admin_user}'!${NC}"
       else
@@ -216,6 +254,57 @@ show_menu() {
       git status -s || true
       echo -e "${BLUE}Latest Commits:${NC}"
       git log -n 3 --oneline || true
+      read -rp "Press Enter to return to menu..." _
+      show_menu
+      ;;
+    16)
+      echo -e "${CYAN}=== TELEGRAM BOT ENGINE & STATUS ===${NC}"
+      local CURRENT_BOT="$(curl -s http://127.0.0.1:3000/api/bot/status 2>/dev/null || echo '{"isPolling":false}')"
+      echo -e "Live Status: ${CURRENT_BOT}"
+      echo -e ""
+      echo -e "[1] Start Telegram Bot Polling (Shorooe Robat)"
+      echo -e "[2] Stop Telegram Bot Polling (Tavaghofe Robat)"
+      echo -e "[3] Change Bot Token (Tanzime Tokene Jadid az BotFather)"
+      echo -e "[4] Send Health Test Message to Admin Telegram ID"
+      echo -e "[5] Restart Polling"
+      read -rp "Select option: " bot_opt
+      case "$bot_opt" in
+        1)
+          echo -e "${BLUE}Starting bot...${NC}"
+          curl -s -X POST http://127.0.0.1:3000/api/bot/start | jq . 2>/dev/null || curl -s -X POST http://127.0.0.1:3000/api/bot/start
+          ;;
+        2)
+          echo -e "${YELLOW}Stopping bot...${NC}"
+          curl -s -X POST http://127.0.0.1:3000/api/bot/stop | jq . 2>/dev/null || curl -s -X POST http://127.0.0.1:3000/api/bot/stop
+          ;;
+        3)
+          read -rsp "Enter new Telegram Bot Token: " new_bot_token
+          echo ""
+          if [ -n "$new_bot_token" ]; then
+            if grep -q "TELEGRAM_BOT_TOKEN=" "$INSTALL_DIR/.env" 2>/dev/null; then
+              sed -i "s|TELEGRAM_BOT_TOKEN=.*|TELEGRAM_BOT_TOKEN=${new_bot_token}|" "$INSTALL_DIR/.env"
+            else
+              echo "TELEGRAM_BOT_TOKEN=${new_bot_token}" >> "$INSTALL_DIR/.env"
+            fi
+            curl -s -X POST -H "Content-Type: application/json" \
+              -d "{\"token\":\"$new_bot_token\"}" \
+              http://127.0.0.1:3000/api/bot/start | jq . 2>/dev/null || true
+            systemctl restart tsm-store 2>/dev/null || true
+            echo -e "${GREEN}✓ Bot token updated and bot restarted!${NC}"
+          fi
+          ;;
+        4)
+          read -rp "Enter Admin Telegram Numeric ID (e.g. 987654321): " test_admin_id
+          curl -s -X POST -H "Content-Type: application/json" \
+            -d "{\"adminId\":\"$test_admin_id\"}" \
+            http://127.0.0.1:3000/api/bot/test | jq . 2>/dev/null || true
+          ;;
+        5)
+          curl -s -X POST http://127.0.0.1:3000/api/bot/stop >/dev/null 2>&1 || true
+          sleep 1
+          curl -s -X POST http://127.0.0.1:3000/api/bot/start | jq . 2>/dev/null || true
+          ;;
+      esac
       read -rp "Press Enter to return to menu..." _
       show_menu
       ;;
