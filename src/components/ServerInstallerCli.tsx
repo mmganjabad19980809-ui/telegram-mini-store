@@ -715,6 +715,35 @@ esac
       {/* TAB: SCRIPTS */}
       {activeTab === 'scripts' && (
         <div className="space-y-4">
+          {/* Quick One-Line Install Card */}
+          <div className="bg-gradient-to-r from-[#171936] to-[#25285d] text-white rounded-2xl p-4 sm:p-5 shadow-md border border-[#3b3f80]">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2">
+              <div>
+                <strong className="text-sm sm:text-base font-extrabold text-white block">
+                  ⚡️ دستور نصب سریع تک‌خطی در سرور (از گیت‌هاب)
+                </strong>
+                <p className="text-xs text-[#b8bef5] mt-0.5">
+                  این دستور را مستقیماً در ترمینال سرور لینوکس (Ubuntu / Debian / VPS) خود کپی و اجرا کنید:
+                </p>
+              </div>
+              <button
+                onClick={() =>
+                  copyToClipboard(
+                    'curl -fsSL https://raw.githubusercontent.com/mmganjabad19980809-ui/telegram-mini-store/main/install.sh | sudo bash',
+                    'quick-curl'
+                  )
+                }
+                className="px-4 py-2 bg-[#5b5ce2] hover:bg-[#4849cb] text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm flex-none"
+              >
+                {copiedScript === 'quick-curl' ? <Check className="w-3.5 h-3.5 text-green-300" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedScript === 'quick-curl' ? 'کپی شد ✓' : 'کپی دستور نصب'}</span>
+              </button>
+            </div>
+            <div className="bg-[#0c1017] p-3 rounded-xl font-mono text-xs text-green-400 select-all border border-[#232936] flex items-center justify-between overflow-x-auto" dir="ltr">
+              <code>curl -fsSL https://raw.githubusercontent.com/mmganjabad19980809-ui/telegram-mini-store/main/install.sh | sudo bash</code>
+            </div>
+          </div>
+
           <div className="bg-white border border-[#e4e7ec] rounded-2xl p-4 shadow-sm">
             <div className="flex justify-between items-center mb-2">
               <div>

@@ -1,0 +1,47 @@
+{
+  "platform": "TSM STORE",
+  "version": "1.8.0",
+  "repository": "https://github.com/mmganjabad19980809-ui/telegram-mini-store.git",
+  "systems": [
+    {
+      "os": "Ubuntu 24.04 LTS (Noble Numbat)",
+      "architectures": ["x86_64", "arm64"],
+      "status": "Supported",
+      "recommended": true
+    },
+    {
+      "os": "Ubuntu 22.04 LTS (Jammy Jellyfish)",
+      "architectures": ["x86_64", "arm64"],
+      "status": "Supported",
+      "recommended": true
+    },
+    {
+      "os": "Debian 12 (Bookworm)",
+      "architectures": ["x86_64", "arm64"],
+      "status": "Supported",
+      "recommended": true
+    },
+    {
+      "os": "Windows 10/11 WSL2 (Ubuntu)",
+      "architectures": ["x86_64"],
+      "status": "Supported",
+      "recommended": false
+    },
+    {
+      "os": "CentOS / AlmaLinux / Rocky Linux 9",
+      "architectures": ["x86_64"],
+      "status": "Experimental",
+      "recommended": false
+    }
+  ],
+  "requirements": {
+    "node": ">= 20.0.0 (Node 22 LTS recommended)",
+    "ram_min": "1024 MB",
+    "disk_min": "10 GB",
+    "ports": {
+      "internal_backend": 3000,
+      "public_https": 443
+    },
+    "tunnel": "Cloudflare Tunnel (recommended, no open inbound ports needed)"
+  }
+}
