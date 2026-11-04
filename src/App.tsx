@@ -130,21 +130,26 @@ export default function App() {
     setIsAdminOpen(false);
   };
 
+  // Check if developer tools mode is requested via URL query e.g. ?dev=true
+  const isDevMode = typeof window !== 'undefined' && window.location.search.includes('dev=true');
+
   return (
     <div className="min-h-screen bg-[#f5f7fb] flex flex-col text-[#101828]">
-      {/* Top Bar for View Switcher & TSM Platform Identity */}
-      <HeaderNav
-        currentView={currentView}
-        onSelectView={(v) => {
-          setCurrentView(v);
-          setIsAdminOpen(false);
-        }}
-        config={config}
-        onOpenAdmin={() => setIsAdminOpen(true)}
-      />
+      {/* Dev Switcher ONLY shown if ?dev=true is present; customer never sees this */}
+      {isDevMode && (
+        <HeaderNav
+          currentView={currentView}
+          onSelectView={(v) => {
+            setCurrentView(v);
+            setIsAdminOpen(false);
+          }}
+          config={config}
+          onOpenAdmin={() => setIsAdminOpen(true)}
+        />
+      )}
 
       {/* Main App Body */}
-      <div className="flex-1 pb-10">
+      <div className="flex-1 pb-6">
         {isAdminOpen ? (
           <AdminPanel
             config={config}
@@ -197,18 +202,6 @@ export default function App() {
           </>
         )}
       </div>
-
-      {/* Subtle Footer */}
-      <footer className="py-4 text-center text-xs text-[#667085] border-t border-[#e4e7ec] bg-white">
-        <div className="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>
-            پلتفرم پایش و فروشگاهی <strong>{config.platformName || 'TSM STORE'}</strong> • نام فروشگاه: {config.storeName}
-          </span>
-          <span className="text-[11px] text-[#98a2b3]">
-            میانبر دسترسی مدیریت: <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded font-mono text-[10px]">Alt + A</kbd>
-          </span>
-        </div>
-      </footer>
     </div>
   );
 }

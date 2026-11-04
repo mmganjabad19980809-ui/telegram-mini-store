@@ -7,12 +7,15 @@ import {
   Order,
   FormField,
   SupportTicket,
+  CustomerProfile,
+  calculatePlanPrice,
 } from '../types/store';
 import {
   Search,
   Receipt,
   Settings,
   ArrowRight,
+  ArrowLeft,
   CheckCircle2,
   Clock,
   Copy,
@@ -32,8 +35,10 @@ import {
   Calculator,
   Edit3,
   MessageCircle,
+  ChevronLeft,
+  ChevronRight,
+  Flame,
 } from 'lucide-react';
-import { CustomerProfile } from '../types/store';
 
 interface CustomerStoreProps {
   config: StoreConfig;
@@ -65,6 +70,9 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
   const [copiedCard, setCopiedCard] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
 
+  // Animated Carousel Slide Index
+  const [currentSlide, setCurrentSlide] = useState(0);
+
   // Live Currency Exchange Rates State (from public API or admin config)
   const [liveRates, setLiveRates] = useState<{
     usdPrice: number;
@@ -80,7 +88,7 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
     change24h: '+1.2%',
     high24h: (config.usdRate || 94850) + 500,
     low24h: (config.usdRate || 94850) - 400,
-    source: 'سامانه لحظه‌ای ارز آزاد و تتر',
+    source: config.exchangeRateApi?.providerName || 'سامانه لحظه‌ای ارز آزاد و تتر',
     lastUpdate: new Date().toLocaleTimeString('fa-IR'),
   });
   const [isRefreshingRates, setIsRefreshingRates] = useState(false);
@@ -93,7 +101,7 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
     // Try to auto-read from Telegram WebApp SDK if loaded inside Telegram
     const tgUser = typeof window !== 'undefined' ? (window as any).Telegram?.WebApp?.initDataUnsafe?.user : null;
     return {
-      id: tgUser?.id ? String(tgUser.id) : (config.adminNumericId ? '689234812' : '987654321'),
+      id: tgUser?.id ? String(tgUser.id) : (config.adminNumericId ? '8063138319' : '987654321'),
       name: tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') : 'کاربر تلگرام',
       username: tgUser?.username ? `@${tgUser.username}` : '@customer',
       phone: '۰۹۱۲۳۴۵۶۷۸۹',
@@ -110,6 +118,52 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
   const [editPhone, setEditPhone] = useState(customerProfile.phone);
   const [editBio, setEditBio] = useState(customerProfile.bio);
   const [profileSubTab, setProfileSubTab] = useState<'orders' | 'info'>('orders');
+
+  // Featured slider products (up to 6 items)
+  const featuredSliderProducts = useMemo(() => {
+    const list = products.filter(
+      (p) => p.active !== false && (p.featuredInSlider || (config.featuredProductIds && config.featuredProductIds.includes(p.id)))
+    );
+    if (list.length > 0) return list.slice(0, 6);
+    return products.filter((p) => p.active !== false).slice(0, 6);
+  }, [products, config.featuredProductIds]);
+
+  // Auto-advance carousel every 4.5 seconds
+  React.useEffect(() => {
+    if (featuredSliderProducts.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % featuredSliderProducts.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [featuredSliderProducts.length]);
+
+  // Auto-sync customer profile from Telegram WebApp
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+      try {
+        tg.ready?.();
+        tg.expand?.();
+      } catch (_) {}
+      const tgUser = tg.initDataUnsafe?.user;
+      if (tgUser) {
+        const fullName = [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || 'کاربر تلگرام';
+        const userTag = tgUser.username ? `@${tgUser.username}` : `@user_${tgUser.id}`;
+        const uid = String(tgUser.id);
+        setCustomerProfile((prev) => ({
+          ...prev,
+          id: uid,
+          name: fullName,
+          username: userTag,
+          photoUrl: tgUser.photo_url || prev.photoUrl,
+        }));
+        setEditName(fullName);
+        setCustName(fullName);
+        setCustTelegram(userTag);
+      }
+    }
+  }, []);
 
   // Fetch Live Rates
   const refreshRates = async () => {
@@ -140,7 +194,7 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
 
   React.useEffect(() => {
     refreshRates();
-    const interval = setInterval(refreshRates, 120000);
+    const interval = setInterval(refreshRates, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -288,7 +342,7 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
       productId: selectedProduct.id,
       plan: selectedPlan.name,
       planId: selectedPlan.id,
-      amount: selectedPlan.price,
+      amount: calculatePlanPrice(selectedPlan, liveRates.usdPrice),
       status: 'در انتظار بررسی',
       paymentMethod,
       customer: {
@@ -645,14 +699,135 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
             )}
           </div>
 
-          {/* Hero Banner matching store_v18.html */}
-          <section className="hero-gradient text-white rounded-[28px] p-6 sm:p-8 shadow-[0_12px_35px_rgba(16,24,40,0.07)] mb-6">
-            <h2 className="text-2xl sm:text-3xl font-black mb-2">چی لازم داری؟</h2>
-            <p className="text-xs sm:text-sm text-[#d8dbff] leading-relaxed max-w-xl">
-              محصولت رو انتخاب کن، پلن مناسب رو بردار و بقیه مراحل رو خیلی ساده انجام بده.
-            </p>
+          {/* Hero Banner with Animated Featured Products Carousel ("چی لازم داری؟") */}
+          <section className="hero-gradient text-white rounded-[28px] p-5 sm:p-7 shadow-[0_12px_35px_rgba(16,24,40,0.07)] mb-6 relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl sm:text-3xl font-black m-0">چی لازم داری؟</h2>
+                  <span className="bg-white/20 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border border-white/20 flex items-center gap-1">
+                    <Flame className="w-3 h-3 text-amber-300" />
+                    <span>ویترین هوشمند</span>
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-[#d8dbff] leading-relaxed max-w-xl mt-1">
+                  محصولت رو انتخاب کن، پلن مناسب رو بردار و بقیه مراحل رو خیلی ساده انجام بده.
+                </p>
+              </div>
 
-            <div className="relative mt-5">
+              {/* Slider Arrows */}
+              {featuredSliderProducts.length > 1 && (
+                <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                  <button
+                    onClick={() =>
+                      setCurrentSlide(
+                        (prev) => (prev - 1 + featuredSliderProducts.length) % featuredSliderProducts.length
+                      )
+                    }
+                    className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition border border-white/10"
+                    title="قبلی"
+                  >
+                    <ChevronRight className="w-4 h-4 text-white" />
+                  </button>
+                  <button
+                    onClick={() =>
+                      setCurrentSlide((prev) => (prev + 1) % featuredSliderProducts.length)
+                    }
+                    className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition border border-white/10"
+                    title="بعدی"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-white" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Featured Product Slide Card */}
+            {featuredSliderProducts.length > 0 && (() => {
+              const activeSlideProd = featuredSliderProducts[currentSlide % featuredSliderProducts.length];
+              const slidePlans = activeSlideProd.plans.filter((x) => x.active !== false);
+              const slideMinPrice = slidePlans.length
+                ? Math.min(...slidePlans.map((x) => calculatePlanPrice(x, liveRates.usdPrice)))
+                : 0;
+
+              return (
+                <div className="bg-black/25 backdrop-blur-md border border-white/20 rounded-[22px] p-4 sm:p-5 mb-4 transition-all duration-300 shadow-xl">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 w-full sm:w-auto">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-[18px] bg-white/15 flex-none overflow-hidden flex items-center justify-center border border-white/25 shadow-inner">
+                        {activeSlideProd.image ? (
+                          <img
+                            src={activeSlideProd.image}
+                            alt={activeSlideProd.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <span className="text-3xl">{activeSlideProd.icon}</span>
+                        )}
+                      </div>
+
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="bg-emerald-500/80 text-white text-[10px] font-black px-2 py-0.5 rounded-md">
+                            پیشنهاد منتخب #{((currentSlide % featuredSliderProducts.length) + 1).toLocaleString('fa-IR')}
+                          </span>
+                          <span className="text-[11px] text-emerald-200">
+                            {slidePlans.length} پلن آماده تحویل
+                          </span>
+                        </div>
+                        <h3 className="text-base sm:text-lg font-black text-white m-0">
+                          {activeSlideProd.name}
+                        </h3>
+                        <p className="text-xs text-white/80 line-clamp-1 mt-0.5 max-w-md">
+                          {activeSlideProd.desc}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto pt-2 sm:pt-0 border-t border-white/10 sm:border-0">
+                      <div className="text-right sm:text-left">
+                        <span className="text-[10px] text-white/70 block">شروع قیمت از:</span>
+                        <b className="text-base sm:text-lg font-black text-emerald-300">
+                          {slidePlans.length > 0 ? formatMoney(slideMinPrice) : 'ناموجود'}
+                        </b>
+                      </div>
+
+                      <button
+                        onClick={() => handleOpenProduct(activeSlideProd)}
+                        className="py-2.5 px-5 bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-slate-950 font-black rounded-xl text-xs sm:text-sm transition shadow-lg flex items-center gap-1.5 active:scale-95"
+                      >
+                        <span>خرید مستقیم</span>
+                        <ArrowLeft className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Dot Indicators */}
+                  {featuredSliderProducts.length > 1 && (
+                    <div className="flex items-center justify-center gap-1.5 mt-3 pt-2 border-t border-white/10">
+                      {featuredSliderProducts.map((_, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setCurrentSlide(idx)}
+                          className={`h-2 rounded-full transition-all ${
+                            (currentSlide % featuredSliderProducts.length) === idx
+                              ? 'w-6 bg-emerald-400'
+                              : 'w-2 bg-white/30 hover:bg-white/50'
+                          }`}
+                          title={`محصول ${idx + 1}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Instant Search Bar */}
+            <div className="relative">
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -817,31 +992,41 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
             <div className="grid gap-2.5">
               {selectedProduct.plans
                 .filter((p) => p.active !== false)
-                .map((plan) => (
-                  <div
-                    key={plan.id}
-                    className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border border-[#e4e7ec] p-4 rounded-[16px] hover:border-[#5b5ce2] transition bg-white"
-                  >
-                    <div>
-                      <b className="text-sm sm:text-base font-bold text-[#101828] block">{plan.name}</b>
-                      <small className="text-xs text-[#667085]">
-                        {formatMoney(plan.price)} • موجودی: {plan.stock} {plan.unit}
-                      </small>
-                    </div>
-
-                    <button
-                      onClick={() => handleStartCheckout(plan)}
-                      disabled={plan.stock <= 0}
-                      className={`w-full sm:w-auto px-6 py-2.5 rounded-[12px] text-xs sm:text-sm font-bold transition ${
-                        plan.stock > 0
-                          ? 'bg-[#5b5ce2] hover:bg-[#4849cb] text-white shadow-md'
-                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      }`}
+                .map((plan) => {
+                  const effectivePrice = calculatePlanPrice(plan, liveRates.usdPrice);
+                  return (
+                    <div
+                      key={plan.id}
+                      className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border border-[#e4e7ec] p-4 rounded-[16px] hover:border-[#5b5ce2] transition bg-white"
                     >
-                      {plan.stock > 0 ? 'انتخاب و خرید' : 'ناموجود'}
-                    </button>
-                  </div>
-                ))}
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <b className="text-sm sm:text-base font-bold text-[#101828] block">{plan.name}</b>
+                          {plan.pricingMode === 'dynamic_usd' && (
+                            <span className="text-[10px] font-bold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md border border-amber-200">
+                              نرخ دلاری: ${plan.usdPrice} ({plan.profitMarginPercent || 0}% سود)
+                            </span>
+                          )}
+                        </div>
+                        <small className="text-xs text-[#667085]">
+                          {formatMoney(effectivePrice)} • موجودی: {plan.stock} {plan.unit}
+                        </small>
+                      </div>
+
+                      <button
+                        onClick={() => handleStartCheckout({ ...plan, price: effectivePrice })}
+                        disabled={plan.stock <= 0}
+                        className={`w-full sm:w-auto px-6 py-2.5 rounded-[12px] text-xs sm:text-sm font-bold transition ${
+                          plan.stock > 0
+                            ? 'bg-[#5b5ce2] hover:bg-[#4849cb] text-white shadow-md'
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        {plan.stock > 0 ? 'انتخاب و خرید' : 'ناموجود'}
+                      </button>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         </div>
@@ -879,7 +1064,7 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
               </div>
               <div className="flex justify-between font-black text-sm sm:text-base border-t border-[#e4e7ec] pt-2.5 text-[#101828]">
                 <span>مبلغ قابل پرداخت</span>
-                <span className="text-[#5b5ce2]">{formatMoney(selectedPlan.price)}</span>
+                <span className="text-[#5b5ce2]">{formatMoney(calculatePlanPrice(selectedPlan, liveRates.usdPrice))}</span>
               </div>
             </div>
 

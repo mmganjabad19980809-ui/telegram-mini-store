@@ -1,3 +1,28 @@
+export interface ExchangeRateApiConfig {
+  enabled?: boolean;
+  active?: boolean;
+  mode?: 'known' | 'custom';
+  providerName: string;
+  endpointUrl: string;
+  apiKey?: string;
+  method?: 'GET' | 'POST';
+  httpMethod?: 'GET' | 'POST';
+  headers?: Record<string, string>;
+  customHeaders?: string;
+  requestBody?: string;
+  currencyPair: string; // e.g. 'USD/IRT', 'USD/IRR', 'USDT/IRT'
+  displayCurrency: 'Toman' | 'Rial' | 'USD' | 'Other' | 'toman' | 'rial' | 'usd';
+  responseMapping?: string; // e.g. 'data.price', 'rates.USD', 'price', 'result.usd'
+  jsonPath?: string;
+  priceUnit?: 'toman' | 'rial';
+  refreshIntervalSeconds: number; // default 60
+  fallbackRate?: number;
+  lastFetchedPrice?: number;
+  lastFetchTime?: string;
+  status?: 'ONLINE' | 'OFFLINE' | 'CONFIGURING' | 'ERROR';
+  lastError?: string;
+}
+
 export interface BotButtonConfig {
   storeButtonText: string;
   storeButtonActive: boolean;
@@ -44,6 +69,8 @@ export interface StoreConfig {
   bankName?: string;
   publicAppUrl?: string;
   botButtons?: BotButtonConfig;
+  exchangeRateApi?: ExchangeRateApiConfig;
+  featuredProductIds?: string[]; // IDs for the "چی لازم داری؟" slider (max 6)
 }
 
 export interface CustomerProfile {
@@ -71,6 +98,9 @@ export interface Plan {
   id: string;
   name: string;
   price: number;
+  usdPrice?: number; // base price in USD (e.g. 8)
+  profitMarginPercent?: number; // admin profit % (e.g. 10)
+  pricingMode?: 'manual_toman' | 'dynamic_usd' | 'fixed_toman';
   stock: number;
   unit: string;
   active: boolean;
@@ -96,6 +126,19 @@ export interface Product {
   customFields: FormField[];
   plans: Plan[];
   active: boolean;
+  featuredInSlider?: boolean; // Displayed in the "چی لازم داری؟" header slider
+}
+
+/**
+ * Calculates real-time Toman price for a plan based on current dollar rate and profit margin
+ */
+export function calculatePlanPrice(plan: Plan, usdRate: number): number {
+  if (plan.pricingMode === 'dynamic_usd' && typeof plan.usdPrice === 'number' && plan.usdPrice > 0) {
+    const margin = typeof plan.profitMarginPercent === 'number' ? plan.profitMarginPercent : 0;
+    const baseToman = plan.usdPrice * usdRate;
+    return Math.round(baseToman * (1 + margin / 100));
+  }
+  return plan.price || 0;
 }
 
 export interface Order {

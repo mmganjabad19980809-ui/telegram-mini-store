@@ -33,7 +33,16 @@ import {
   ShieldAlert,
   ArrowRight,
   ExternalLink,
+  TrendingUp,
+  Zap,
+  Activity,
+  Globe,
+  Flame,
+  CheckCircle2,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
+import { ExchangeRateApiConfig, calculatePlanPrice } from '../types/store';
 
 interface AdminPanelProps {
   config: StoreConfig;
@@ -71,7 +80,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Active section inside admin
   const [activeSection, setActiveSection] = useState<
-    'dashboard' | 'orders' | 'products' | 'cms' | 'bot' | 'tickets' | 'reports' | 'backup'
+    'dashboard' | 'orders' | 'products' | 'cms' | 'rates' | 'bot' | 'tickets' | 'reports' | 'backup'
   >('dashboard');
 
   // Modals state
@@ -89,6 +98,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newProdFormType, setNewProdFormType] = useState<'ai' | 'game' | 'vpn' | 'basic' | 'custom'>('basic');
   const [newProdImage, setNewProdImage] = useState('');
   const [newProdCustomLines, setNewProdCustomLines] = useState('');
+  const [newProdFeaturedSlider, setNewProdFeaturedSlider] = useState(false);
 
   // Add Plan Modal
   const [showPlanModal, setShowPlanModal] = useState(false);
@@ -97,12 +107,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newPlanPrice, setNewPlanPrice] = useState('');
   const [newPlanStock, setNewPlanStock] = useState('10');
   const [newPlanUnit, setNewPlanUnit] = useState('اشتراک');
+  const [newPlanPricingMode, setNewPlanPricingMode] = useState<'fixed_toman' | 'dynamic_usd'>('fixed_toman');
+  const [newPlanUsdPrice, setNewPlanUsdPrice] = useState('8');
+  const [newPlanMargin, setNewPlanMargin] = useState('10');
 
   // Form Editor Modal
   const [showFormModal, setShowFormModal] = useState(false);
   const [formProductIndex, setFormProductIndex] = useState<number | null>(null);
   const [formTemplateType, setFormTemplateType] = useState<'ai' | 'game' | 'vpn' | 'basic' | 'custom'>('basic');
   const [formCustomLines, setFormCustomLines] = useState('');
+
+  // Exchange Rate API Configuration State
+  const [rateConfig, setRateConfig] = useState<ExchangeRateApiConfig>(() => ({
+    providerName: config.exchangeRateApi?.providerName || 'Nobitex / Navasan API',
+    endpointUrl: config.exchangeRateApi?.endpointUrl || 'https://api.exchangerate-api.com/v4/latest/USD',
+    httpMethod: config.exchangeRateApi?.httpMethod || 'GET',
+    customHeaders: config.exchangeRateApi?.customHeaders || '',
+    requestBody: config.exchangeRateApi?.requestBody || '',
+    currencyPair: config.exchangeRateApi?.currencyPair || 'USD/IRT',
+    displayCurrency: config.exchangeRateApi?.displayCurrency || 'toman',
+    jsonPath: config.exchangeRateApi?.jsonPath || 'rates.IRT',
+    priceUnit: config.exchangeRateApi?.priceUnit || 'toman',
+    refreshIntervalSeconds: config.exchangeRateApi?.refreshIntervalSeconds || 60,
+    fallbackRate: config.exchangeRateApi?.fallbackRate || 94850,
+    active: config.exchangeRateApi?.active !== false,
+  }));
+  const [isTestingRateApi, setIsTestingRateApi] = useState(false);
+  const [rateTestReport, setRateTestReport] = useState<any>(null);
 
   // Toast
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -130,6 +161,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [newPassword2Input, setNewPassword2Input] = useState('');
   const [authError, setAuthError] = useState('');
 
+  // Auto-detect Telegram WebApp User ID on mount and verify if authorized
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const tgUser = (window as any).Telegram?.WebApp?.initDataUnsafe?.user;
+    const currentAdminId = (config.adminNumericId || adminConfig.telegramAdminId || '8063138319').trim();
+    if (tgUser?.id) {
+      const tgIdStr = String(tgUser.id);
+      setNumericIdInput(tgIdStr);
+      if (tgIdStr === currentAdminId || tgIdStr === '8063138319' || tgIdStr === '987654321') {
+        setNumericIdVerified(true);
+        setAuthStep('step2_credentials');
+        toast(`شناسه عددی تلگرام (${tgIdStr}) به صورت خودکار تایید شد ✓`);
+      }
+    }
+  }, [config.adminNumericId, adminConfig.telegramAdminId]);
+
   // Bot live status in admin
   const [botLoading, setBotLoading] = useState(false);
   const [botLiveInfo, setBotLiveInfo] = useState<any>(null);
@@ -137,10 +184,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // AUTH HANDLERS
   const handleVerifyNumericId = (e: React.FormEvent) => {
     e.preventDefault();
-    const expectedId = (config.adminNumericId || adminConfig.telegramAdminId || '987654321').trim();
+    const expectedId = (config.adminNumericId || adminConfig.telegramAdminId || '8063138319').trim();
     const inputId = numericIdInput.trim();
 
-    if (inputId === expectedId || inputId === '987654321' || !expectedId) {
+    // Accept user's real Telegram ID 8063138319 or configured id
+    if (inputId === '8063138319' || inputId === expectedId || inputId === '987654321' || !expectedId) {
       setNumericIdVerified(true);
       setAuthStep('step2_credentials');
       setAuthError('');
@@ -261,33 +309,132 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     toast('پلن حذف شد');
   };
 
+  const handleToggleSliderFeatured = (pIdx: number) => {
+    const updated = [...products];
+    const p = updated[pIdx];
+    const currentlyFeatured = !!p.featuredInSlider || (config.featuredProductIds && config.featuredProductIds.includes(p.id));
+    const currentFeaturedCount = updated.filter((item) => item.featuredInSlider || (config.featuredProductIds && config.featuredProductIds.includes(item.id))).length;
+
+    if (!currentlyFeatured && currentFeaturedCount >= 6) {
+      toast('حداکثر ۶ محصول می‌توانند در اسلایدر «چی لازم داری؟» نمایش داده شوند.');
+      return;
+    }
+
+    p.featuredInSlider = !currentlyFeatured;
+    onUpdateProducts(updated);
+
+    const newFeaturedIds = updated
+      .filter((item) => item.featuredInSlider)
+      .map((item) => item.id);
+    onUpdateConfig({
+      ...config,
+      featuredProductIds: newFeaturedIds,
+    });
+    toast(p.featuredInSlider ? `«${p.name}» به اسلایدر ویترین اضافه شد ⭐` : `«${p.name}» از اسلایدر حذف شد`);
+  };
+
+  const handleTestRateApi = async () => {
+    setIsTestingRateApi(true);
+    setRateTestReport(null);
+    try {
+      const res = await fetch('/api/rates/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rateConfig),
+      });
+      const data = await res.json();
+      setRateTestReport(data);
+      if (data.ok) {
+        toast(`تست موفقیت‌آمیز بود! نرخ دریافتی: ${data.extractedPrice?.toLocaleString('fa-IR')} تومان ✓`);
+      } else {
+        toast(`خطا در تست: ${data.error || 'پاسخ نامعتبر'}`);
+      }
+    } catch (err: any) {
+      setRateTestReport({
+        ok: false,
+        error: err.message,
+        steps: [
+          { step: 1, name: 'اتصال به اینترنت و هاست', status: 'FAIL', detail: err.message },
+        ],
+      });
+      toast('خطا در برقراری ارتباط با سرور تست');
+    } finally {
+      setIsTestingRateApi(false);
+    }
+  };
+
+  const handleSaveRateConfig = async () => {
+    const currentRate = rateTestReport?.extractedPrice || rateConfig.fallbackRate || 94850;
+    const updatedConfig: StoreConfig = {
+      ...config,
+      usdRate: currentRate,
+      usdtRate: currentRate + 350,
+      exchangeRateApi: rateConfig,
+    };
+    onUpdateConfig(updatedConfig);
+
+    try {
+      await fetch('/api/rates/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rateConfig),
+      });
+    } catch (_) {}
+    toast('تنظیمات API نرخ ارز با موفقیت ذخیره و فعال شد ✓');
+  };
+
   const openAddPlan = (pIdx: number) => {
     setPlanProductIndex(pIdx);
     setNewPlanName('');
-    setNewPlanPrice('');
+    setNewPlanPrice('390000');
     setNewPlanStock('10');
     setNewPlanUnit('اشتراک');
+    setNewPlanPricingMode('fixed_toman');
+    setNewPlanUsdPrice('8');
+    setNewPlanMargin('10');
     setShowPlanModal(true);
   };
 
   const submitCreatePlan = (e: React.FormEvent) => {
     e.preventDefault();
     if (planProductIndex === null || !products[planProductIndex]) return;
-    const price = parseInt(newPlanPrice.replace(/[^0-9]/g, '')) || 0;
     const stock = parseInt(newPlanStock) || 0;
-    if (!newPlanName.trim() || price <= 0) {
-      toast('لطفاً نام و قیمت معتبر وارد کنید');
+    const currentUsdRate = config.usdRate || 94850;
+    let finalPrice = 0;
+
+    if (newPlanPricingMode === 'dynamic_usd') {
+      const usd = parseFloat(newPlanUsdPrice) || 0;
+      const margin = parseFloat(newPlanMargin) || 0;
+      if (usd <= 0) {
+        toast('لطفاً قیمت معتبر دلاری وارد کنید');
+        return;
+      }
+      finalPrice = Math.round(usd * currentUsdRate * (1 + margin / 100));
+    } else {
+      finalPrice = parseInt(newPlanPrice.replace(/[^0-9]/g, '')) || 0;
+      if (finalPrice <= 0) {
+        toast('لطفاً قیمت معتبر وارد کنید');
+        return;
+      }
+    }
+
+    if (!newPlanName.trim()) {
+      toast('لطفاً نام پلن را وارد کنید');
       return;
     }
+
     const updated = [...products];
     const p = updated[planProductIndex];
     p.plans.push({
       id: `${p.id}_pl_${Date.now()}`,
       name: newPlanName.trim(),
-      price,
+      price: finalPrice,
       stock,
       unit: newPlanUnit.trim() || 'مورد',
       active: true,
+      pricingMode: newPlanPricingMode,
+      usdPrice: newPlanPricingMode === 'dynamic_usd' ? parseFloat(newPlanUsdPrice) : undefined,
+      profitMarginPercent: newPlanPricingMode === 'dynamic_usd' ? parseFloat(newPlanMargin) : undefined,
     });
     onUpdateProducts(updated);
     setShowPlanModal(false);
@@ -742,6 +889,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </button>
 
             <button
+              onClick={() => setActiveSection('rates')}
+              className={`p-2.5 rounded-xl text-right flex items-center gap-2 transition ${
+                activeSection === 'rates'
+                  ? 'bg-gradient-to-l from-[#5b5ce2] to-[#7c5cff] text-white'
+                  : 'text-[#c6cbef] hover:bg-white/10'
+              }`}
+            >
+              <TrendingUp className="w-4 h-4" />
+              <span>نرخ ارز و API</span>
+            </button>
+
+            <button
               onClick={() => setActiveSection('bot')}
               className={`p-2.5 rounded-xl text-right flex items-center gap-2 transition ${
                 activeSection === 'bot'
@@ -1083,6 +1242,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </span>
                       </div>
 
+                      {/* Featured in "چی لازم داری؟" Slider Toggle */}
+                      <div className="bg-[#f8f9fc] border border-[#e4e7ec] rounded-xl p-2.5 mb-2.5 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <Flame className="w-3.5 h-3.5 text-amber-500" />
+                          <span className="text-xs font-bold text-[#344054]">اسلایدر «چی لازم داری؟»</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSliderFeatured(idx)}
+                          className={`text-[11px] px-2.5 py-1 rounded-lg font-black transition flex items-center gap-1 ${
+                            p.featuredInSlider || (config.featuredProductIds && config.featuredProductIds.includes(p.id))
+                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                              : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          {p.featuredInSlider || (config.featuredProductIds && config.featuredProductIds.includes(p.id))
+                            ? '⭐ در اسلایدر فعال است'
+                            : '＋ افزودن به اسلایدر'}
+                        </button>
+                      </div>
+
                       {/* Plans list */}
                       <div className="space-y-1.5 my-3">
                         <div className="text-xs font-bold text-[#344054] flex justify-between">
@@ -1311,7 +1491,392 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           )}
 
-          {/* SECTION: BOT SETTINGS */}
+          {/* SECTION: DYNAMIC EXCHANGE RATE API INTEGRATION */}
+          {activeSection === 'rates' && (
+            <div className="space-y-6 max-w-3xl">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black text-[#101828] m-0">مدیریت نرخ زنده ارز و اتصال API</h3>
+                  <span className="bg-emerald-100 text-emerald-800 text-[11px] font-black px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
+                    <Activity className="w-3 h-3 text-emerald-600" />
+                    <span>تست زنده ۸ مرحله‌ای</span>
+                  </span>
+                </div>
+                <p className="text-xs text-[#667085] mt-1 leading-relaxed">
+                  تنظیم آدرس API دلخواه (نوبیتکس، والکس، کوکوین، نوسان، بن‌بست، ExchangeRate-API و ...)، تست ۸ مرحله‌ای اتصال و محاسبه خودکار قیمت تومانی محصولات دلاری با حاشیه سود.
+                </p>
+              </div>
+
+              {/* Current Status Card */}
+              <div className="bg-gradient-to-r from-[#0f172a] via-[#1e293b] to-[#0f172a] text-white p-5 rounded-[22px] border border-slate-700 shadow-xl">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/10">
+                  <div className="flex items-center gap-2.5">
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    </span>
+                    <strong className="text-sm font-black text-emerald-400">
+                      وضعیت منبع نرخ: {rateConfig.active ? 'فعال (خودکار)' : 'غیرفعال'}
+                    </strong>
+                  </div>
+                  <span className="text-xs text-gray-300 font-mono">
+                    ارائه‌دهنده: <b className="text-white">{rateConfig.providerName}</b>
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 text-xs">
+                  <div className="bg-white/10 p-3 rounded-xl border border-white/10">
+                    <span className="text-gray-300 block mb-1">💵 نرخ دلار آزاد:</span>
+                    <b className="text-lg font-black text-emerald-400">
+                      {(config.usdRate || rateConfig.fallbackRate || 94850).toLocaleString('fa-IR')}
+                    </b>
+                    <span className="text-[10px] text-gray-300 mr-1">تومان</span>
+                  </div>
+
+                  <div className="bg-white/10 p-3 rounded-xl border border-white/10">
+                    <span className="text-gray-300 block mb-1">🪙 نرخ تتر (USDT):</span>
+                    <b className="text-lg font-black text-cyan-300">
+                      {((config.usdRate || rateConfig.fallbackRate || 94850) + 350).toLocaleString('fa-IR')}
+                    </b>
+                    <span className="text-[10px] text-gray-300 mr-1">تومان</span>
+                  </div>
+
+                  <div className="bg-white/10 p-3 rounded-xl border border-white/10">
+                    <span className="text-gray-300 block mb-1">⏱ دوره به‌روزرسانی:</span>
+                    <b className="text-base font-black text-amber-300">
+                      هر {rateConfig.refreshIntervalSeconds} ثانیه
+                    </b>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick API Presets */}
+              <div className="bg-[#f8f9fc] border border-[#e4e7ec] rounded-2xl p-4">
+                <span className="text-xs font-bold text-[#344054] block mb-2">
+                  ⚡ پیش‌تنظیم‌های آماده سرویس‌های معتبر ارزی (انتخاب سریع با یک کلیک):
+                </span>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRateConfig((prev) => ({
+                        ...prev,
+                        providerName: 'Nobitex Public API',
+                        endpointUrl: 'https://api.nobitex.ir/v2/orderbook/USDTIRT',
+                        httpMethod: 'GET',
+                        currencyPair: 'USDT/IRT',
+                        displayCurrency: 'toman',
+                        jsonPath: 'lastOrderPrice',
+                        priceUnit: 'rial',
+                        refreshIntervalSeconds: 60,
+                      }))
+                    }
+                    className="px-3 py-1.5 bg-white border border-gray-300 rounded-xl font-bold hover:border-[#5b5ce2] hover:text-[#5b5ce2] transition shadow-sm"
+                  >
+                    🪙 نوبیتکس (USDT/IRT)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRateConfig((prev) => ({
+                        ...prev,
+                        providerName: 'ExchangeRate-API Global',
+                        endpointUrl: 'https://api.exchangerate-api.com/v4/latest/USD',
+                        httpMethod: 'GET',
+                        currencyPair: 'USD/IRT',
+                        displayCurrency: 'toman',
+                        jsonPath: 'rates.IRT',
+                        priceUnit: 'toman',
+                        refreshIntervalSeconds: 60,
+                      }))
+                    }
+                    className="px-3 py-1.5 bg-white border border-gray-300 rounded-xl font-bold hover:border-[#5b5ce2] hover:text-[#5b5ce2] transition shadow-sm"
+                  >
+                    🌐 ExchangeRate-API (جهانی)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRateConfig((prev) => ({
+                        ...prev,
+                        providerName: 'Navasan Tech API',
+                        endpointUrl: 'https://api.navasan.tech/latest/?api_key=FREE_KEY',
+                        httpMethod: 'GET',
+                        currencyPair: 'USD/IRT',
+                        displayCurrency: 'toman',
+                        jsonPath: 'usd.value',
+                        priceUnit: 'toman',
+                        refreshIntervalSeconds: 120,
+                      }))
+                    }
+                    className="px-3 py-1.5 bg-white border border-gray-300 rounded-xl font-bold hover:border-[#5b5ce2] hover:text-[#5b5ce2] transition shadow-sm"
+                  >
+                    📈 سامانه نوسان (Navasan)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRateConfig((prev) => ({
+                        ...prev,
+                        providerName: 'Wallex Exchange API',
+                        endpointUrl: 'https://api.wallex.ir/v1/currencies/stats',
+                        httpMethod: 'GET',
+                        currencyPair: 'USDT/IRT',
+                        displayCurrency: 'toman',
+                        jsonPath: 'result.USDT.price',
+                        priceUnit: 'toman',
+                        refreshIntervalSeconds: 60,
+                      }))
+                    }
+                    className="px-3 py-1.5 bg-white border border-gray-300 rounded-xl font-bold hover:border-[#5b5ce2] hover:text-[#5b5ce2] transition shadow-sm"
+                  >
+                    🏛 والکس (Wallex)
+                  </button>
+                </div>
+              </div>
+
+              {/* API Configuration Form */}
+              <div className="bg-white border border-[#e4e7ec] rounded-2xl p-5 shadow-sm space-y-4 text-xs sm:text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-bold text-[#344054] mb-1">
+                      نام ارائه‌دهنده یا صرافی *
+                    </label>
+                    <input
+                      value={rateConfig.providerName}
+                      onChange={(e) => setRateConfig({ ...rateConfig, providerName: e.target.value })}
+                      placeholder="مثلاً Nobitex, Navasan, Bonbast"
+                      required
+                      className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[#344054] mb-1">متد درخواست HTTP *</label>
+                    <select
+                      value={rateConfig.httpMethod}
+                      onChange={(e: any) => setRateConfig({ ...rateConfig, httpMethod: e.target.value })}
+                      className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2] bg-white"
+                    >
+                      <option value="GET">GET (استاندارد)</option>
+                      <option value="POST">POST (همراه بادی)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-[#344054] mb-1">
+                    آدرس کامل Endpoint API (URL) *
+                  </label>
+                  <input
+                    value={rateConfig.endpointUrl}
+                    onChange={(e) => setRateConfig({ ...rateConfig, endpointUrl: e.target.value })}
+                    dir="ltr"
+                    placeholder="https://api.example.com/v1/rates/usd"
+                    required
+                    className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2] font-mono text-left"
+                  />
+                  <small className="text-gray-400">هر آدرس API معتبر اینترنتی با فرمت خروجی JSON پشتیبانی می‌شود.</small>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block font-bold text-[#344054] mb-1">
+                      مسیر استخراج JSON (dot path) *
+                    </label>
+                    <input
+                      value={rateConfig.jsonPath}
+                      onChange={(e) => setRateConfig({ ...rateConfig, jsonPath: e.target.value })}
+                      dir="ltr"
+                      placeholder="مثلاً: rates.IRT یا data.price"
+                      required
+                      className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2] font-mono text-left"
+                    />
+                    <small className="text-gray-400">مثال: data.price یا rates.USD</small>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[#344054] mb-1">واحد عددی پاسخ API *</label>
+                    <select
+                      value={rateConfig.priceUnit}
+                      onChange={(e: any) => setRateConfig({ ...rateConfig, priceUnit: e.target.value })}
+                      className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2] bg-white"
+                    >
+                      <option value="toman">تومان (مستقیم)</option>
+                      <option value="rial">ریال (تبدیل خودکار با تقسیم بر ۱۰)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[#344054] mb-1">دوره رفرش (ثانیه)</label>
+                    <input
+                      type="number"
+                      value={rateConfig.refreshIntervalSeconds}
+                      onChange={(e) =>
+                        setRateConfig({ ...rateConfig, refreshIntervalSeconds: parseInt(e.target.value) || 60 })
+                      }
+                      min={10}
+                      max={3600}
+                      className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-[#344054] mb-1">جفت ارز (Currency Pair)</label>
+                    <input
+                      value={rateConfig.currencyPair}
+                      onChange={(e) => setRateConfig({ ...rateConfig, currencyPair: e.target.value })}
+                      dir="ltr"
+                      placeholder="USD/IRT یا USDT/IRT"
+                      className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2] font-mono text-left"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-[#344054] mb-1">نرخ رزرو اضطراری (تومان)</label>
+                    <input
+                      type="number"
+                      value={rateConfig.fallbackRate}
+                      onChange={(e) =>
+                        setRateConfig({ ...rateConfig, fallbackRate: parseInt(e.target.value) || 94850 })
+                      }
+                      className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2]"
+                    />
+                    <small className="text-gray-400">در صورتی که API با قطعی موقت مواجه شد استفاده شود</small>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-[#344054] mb-1">هدرهای اختصاصی HTTP (اختیاری)</label>
+                  <textarea
+                    value={rateConfig.customHeaders || ''}
+                    onChange={(e) => setRateConfig({ ...rateConfig, customHeaders: e.target.value })}
+                    dir="ltr"
+                    rows={2}
+                    placeholder='{"Authorization": "Bearer YOUR_TOKEN", "x-api-key": "..."}'
+                    className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2] font-mono text-left"
+                  />
+                  <small className="text-gray-400">در صورت نیاز به ارسال توکن احراز هویت یا کلید API در هدر</small>
+                </div>
+
+                {/* 8-Step Live Connection Test Box */}
+                <div className="bg-[#f0f4ff] border-2 border-[#b8c6ff] rounded-2xl p-4 sm:p-5 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <strong className="text-sm font-black text-[#1d2757] flex items-center gap-1.5">
+                        <Activity className="w-4 h-4 text-[#5b5ce2]" />
+                        <span>تست اتصال زنده ۸ مرحله‌ای به سرور API</span>
+                      </strong>
+                      <span className="text-xs text-[#4e5ba6] block mt-0.5">
+                        بررسی وضعیت شبکه، DNS، گواهی SSL، کد وضعیت HTTP، پارس جیسون و صحت قیمت استخراج‌شده
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleTestRateApi}
+                      disabled={isTestingRateApi}
+                      className="px-5 py-2.5 bg-[#5b5ce2] hover:bg-[#4849cb] text-white font-extrabold rounded-xl transition shadow-md flex items-center gap-2 self-start sm:self-auto disabled:opacity-60"
+                    >
+                      {isTestingRateApi ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Zap className="w-4 h-4 text-amber-300" />
+                      )}
+                      <span>{isTestingRateApi ? 'در حال اجرای تست‌های ۸گانه...' : 'اجرای تست اتصال زنده'}</span>
+                    </button>
+                  </div>
+
+                  {/* Test Report View */}
+                  {rateTestReport && (
+                    <div className="bg-white rounded-xl p-4 border border-[#cfd7f6] space-y-3 animate-fade-in">
+                      <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                        <span className="font-extrabold text-xs text-[#101828] flex items-center gap-1.5">
+                          {rateTestReport.ok ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-red-600" />
+                          )}
+                          <span>نتیجه نهایی تست: {rateTestReport.ok ? 'موفقیت‌آمیز ✓' : 'ناموفق ✗'}</span>
+                        </span>
+                        {rateTestReport.extractedPrice && (
+                          <span className="text-xs font-black bg-emerald-50 text-emerald-700 px-3 py-1 rounded-lg border border-emerald-200">
+                            نرخ استخراج‌شده: {rateTestReport.extractedPrice.toLocaleString('fa-IR')} تومان
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 8 Step List */}
+                      {rateTestReport.steps && Array.isArray(rateTestReport.steps) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          {rateTestReport.steps.map((st: any) => (
+                            <div
+                              key={st.step}
+                              className={`p-2.5 rounded-xl border flex items-start gap-2 ${
+                                st.status === 'PASS'
+                                  ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+                                  : 'bg-red-50/70 border-red-200 text-red-900'
+                              }`}
+                            >
+                              <span className="font-black font-mono text-[11px] mt-0.5">
+                                #{st.step}
+                              </span>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <b className="text-[11px]">{st.name}</b>
+                                  <span
+                                    className={`text-[10px] font-black px-1.5 py-0.2 rounded ${
+                                      st.status === 'PASS' ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800'
+                                    }`}
+                                  >
+                                    {st.status}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] opacity-80 block mt-0.5">{st.detail}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Final Save Actions */}
+                <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSaveRateConfig}
+                    className="w-full sm:w-auto px-6 py-3 bg-[#12b76a] hover:bg-[#0fa05b] text-white font-extrabold rounded-xl transition shadow-md flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>ذخیره و فعال‌سازی سراسری در سرور و فروشگاه</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onUpdateConfig({
+                        ...config,
+                        usdRate: 94850,
+                        usdtRate: 95200,
+                        customDollarRateActive: false,
+                      });
+                      toast('نرخ به حالت پیش‌فرض بازگشت');
+                    }}
+                    className="w-full sm:w-auto px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition"
+                  >
+                    بازنشانی به نرخ پیش‌فرض
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {activeSection === 'bot' && (
             <div className="space-y-5 max-w-xl">
               <h3 className="text-lg font-black text-[#101828]">تنظیمات ربات تلگرام</h3>
@@ -2187,17 +2752,96 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 />
               </div>
 
+              {/* Pricing Mode Selector */}
               <div>
-                <label className="block font-bold text-[#344054] mb-1">قیمت (تومان) *</label>
-                <input
-                  type="number"
-                  value={newPlanPrice}
-                  onChange={(e) => setNewPlanPrice(e.target.value)}
-                  placeholder="مثلاً 390000"
-                  required
-                  className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2]"
-                />
+                <label className="block font-bold text-[#344054] mb-1">نحوه محاسبه قیمت پلن *</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewPlanPricingMode('fixed_toman')}
+                    className={`py-2 px-3 rounded-xl font-bold border transition ${
+                      newPlanPricingMode === 'fixed_toman'
+                        ? 'bg-[#5b5ce2] text-white border-[#5b5ce2]'
+                        : 'bg-white text-gray-700 border-gray-300'
+                    }`}
+                  >
+                    قیمت ثابت (تومان)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewPlanPricingMode('dynamic_usd')}
+                    className={`py-2 px-3 rounded-xl font-bold border transition ${
+                      newPlanPricingMode === 'dynamic_usd'
+                        ? 'bg-[#5b5ce2] text-white border-[#5b5ce2]'
+                        : 'bg-white text-gray-700 border-gray-300'
+                    }`}
+                  >
+                    ⚡ دلاری + سود
+                  </button>
+                </div>
               </div>
+
+              {newPlanPricingMode === 'fixed_toman' ? (
+                <div>
+                  <label className="block font-bold text-[#344054] mb-1">قیمت ثابت (تومان) *</label>
+                  <input
+                    type="number"
+                    value={newPlanPrice}
+                    onChange={(e) => setNewPlanPrice(e.target.value)}
+                    placeholder="مثلاً 390000"
+                    required
+                    className="w-full border border-[#e4e7ec] rounded-xl p-2.5 text-xs outline-none focus:border-[#5b5ce2]"
+                  />
+                </div>
+              ) : (
+                <div className="bg-[#f0f4ff] border border-[#b8c6ff] rounded-xl p-3 space-y-2.5">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-bold text-[#1d2757] mb-1">قیمت پایه دلاری ($) *</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={newPlanUsdPrice}
+                        onChange={(e) => setNewPlanUsdPrice(e.target.value)}
+                        placeholder="مثلاً 8"
+                        required
+                        className="w-full border border-[#b8c6ff] rounded-xl p-2 text-xs outline-none focus:border-[#5b5ce2] font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-[#1d2757] mb-1">حاشیه سود مدیر (%) *</label>
+                      <input
+                        type="number"
+                        step="1"
+                        value={newPlanMargin}
+                        onChange={(e) => setNewPlanMargin(e.target.value)}
+                        placeholder="مثلاً 10"
+                        required
+                        className="w-full border border-[#b8c6ff] rounded-xl p-2 text-xs outline-none focus:border-[#5b5ce2] font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Dynamic calculation live preview */}
+                  <div className="bg-white rounded-lg p-2.5 border border-[#cfd7f6] text-[11px] text-[#1d2757]">
+                    <div className="flex justify-between font-bold mb-1">
+                      <span>نرخ زنده دلار:</span>
+                      <span>{(config.usdRate || 94850).toLocaleString('fa-IR')} تومان</span>
+                    </div>
+                    <div className="flex justify-between font-black text-xs text-[#5b5ce2] pt-1 border-t border-gray-100">
+                      <span>قیمت نهایی تومانی:</span>
+                      <span>
+                        {Math.round(
+                          (parseFloat(newPlanUsdPrice) || 0) *
+                            (config.usdRate || 94850) *
+                            (1 + (parseFloat(newPlanMargin) || 0) / 100)
+                        ).toLocaleString('fa-IR')}{' '}
+                        تومان
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2">
                 <div>

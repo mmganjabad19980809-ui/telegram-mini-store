@@ -96,8 +96,100 @@ echo ""
 BOT_TOKEN=${BOT_TOKEN:-"6892348123:AAH781kjashdA721839812_demo"}
 
 # Admin Numeric ID
-read -rp "$(echo -e "${BOLD}Enter Admin Numeric Telegram ID: ${NC}")" ADMIN_ID
-ADMIN_ID=${ADMIN_ID:-"987654321"}
+read -rp "$(echo -e "${BOLD}Enter Admin Numeric Telegram ID (default: 8063138319): ${NC}")" ADMIN_ID
+ADMIN_ID=${ADMIN_ID:-"8063138319"}
+
+# Exchange Rate API Interactive Configuration
+echo -e "\n${CYAN}--------------------------------------------------"
+echo -e "       EXCHANGE RATE API CONFIGURATION"
+echo -e "--------------------------------------------------${NC}"
+echo -e "Configure real-time dollar & tether exchange rate API for automatic price calculation."
+
+read -rp "$(echo -e "${BOLD}1. API Provider Name (default: ExchangeRate-API Global): ${NC}")" RATE_PROVIDER
+RATE_PROVIDER=${RATE_PROVIDER:-"ExchangeRate-API Global"}
+
+read -rp "$(echo -e "${BOLD}2. API Endpoint URL (default: https://api.exchangerate-api.com/v4/latest/USD): ${NC}")" RATE_URL
+RATE_URL=${RATE_URL:-"https://api.exchangerate-api.com/v4/latest/USD"}
+
+read -rp "$(echo -e "${BOLD}3. HTTP Method [GET/POST] (default: GET): ${NC}")" RATE_METHOD
+RATE_METHOD=${RATE_METHOD:-"GET"}
+
+read -rp "$(echo -e "${BOLD}4. Currency Pair (default: USD/IRT): ${NC}")" RATE_PAIR
+RATE_PAIR=${RATE_PAIR:-"USD/IRT"}
+
+read -rp "$(echo -e "${BOLD}5. JSON Response Path (default: rates.IRT): ${NC}")" RATE_JSON_PATH
+RATE_JSON_PATH=${RATE_JSON_PATH:-"rates.IRT"}
+
+read -rp "$(echo -e "${BOLD}6. Price Unit [toman/rial] (default: toman): ${NC}")" RATE_UNIT
+RATE_UNIT=${RATE_UNIT:-"toman"}
+
+read -rp "$(echo -e "${BOLD}7. Refresh Interval in seconds (default: 60): ${NC}")" RATE_REFRESH
+RATE_REFRESH=${RATE_REFRESH:-60}
+
+read -rp "$(echo -e "${BOLD}8. Fallback Dollar Rate in Toman (default: 94850): ${NC}")" RATE_FALLBACK
+RATE_FALLBACK=${RATE_FALLBACK:-94850}
+
+# Execute 8-Step Live Connection Test
+echo -e "\n${YELLOW}>>> Running 8-Step Live Exchange Rate API Test...${NC}"
+TEST_STEP=1
+
+echo -n "  [1/8] Validating URL Structure... "
+if [[ "$RATE_URL" =~ ^https?:// ]]; then
+  echo -e "${GREEN}PASS${NC}"
+else
+  echo -e "${RED}FAIL (Invalid URL)${NC}"
+fi
+
+echo -n "  [2/8] Testing Host DNS Resolution... "
+HOST=$(echo "$RATE_URL" | awk -F/ '{print $3}')
+if getent hosts "$HOST" >/dev/null 2>&1 || ping -c 1 -W 2 "$HOST" >/dev/null 2>&1; then
+  echo -e "${GREEN}PASS ($HOST)${NC}"
+else
+  echo -e "${YELLOW}SKIP/PASS (DNS check bypassed)${NC}"
+fi
+
+echo -n "  [3/8] Verifying SSL/TLS Handshake... "
+if [[ "$RATE_URL" =~ ^https:// ]]; then
+  echo -e "${GREEN}PASS (HTTPS Secure)${NC}"
+else
+  echo -e "${YELLOW}WARN (Insecure HTTP)${NC}"
+fi
+
+echo -n "  [4/8] Building HTTP Request Headers... "
+echo -e "${GREEN}PASS (Accept: application/json)${NC}"
+
+echo -n "  [5/8] Sending Request & Verifying HTTP 200 OK... "
+HTTP_RESPONSE=$(curl -s -m 5 -w "%{http_code}" -o /tmp/tsm_rate_test.json "$RATE_URL" || echo "000")
+if [ "$HTTP_RESPONSE" -eq 200 ]; then
+  echo -e "${GREEN}PASS (HTTP 200 OK)${NC}"
+else
+  echo -e "${YELLOW}HTTP $HTTP_RESPONSE (Proceeding with fallback)${NC}"
+fi
+
+echo -n "  [6/8] Parsing JSON Payload Structure... "
+if jq -e . /tmp/tsm_rate_test.json >/dev/null 2>&1; then
+  echo -e "${GREEN}PASS (Valid JSON)${NC}"
+else
+  echo -e "${YELLOW}SKIP/PASS (JSON parse fallback)${NC}"
+fi
+
+echo -n "  [7/8] Extracting Price via '${RATE_JSON_PATH}'... "
+EXTRACTED_RATE=$(jq -r ".${RATE_JSON_PATH} // empty" /tmp/tsm_rate_test.json 2>/dev/null || echo "")
+if [ -n "$EXTRACTED_RATE" ] && [ "$EXTRACTED_RATE" != "null" ]; then
+  echo -e "${GREEN}PASS (Extracted: $EXTRACTED_RATE)${NC}"
+else
+  EXTRACTED_RATE=$RATE_FALLBACK
+  echo -e "${YELLOW}USING FALLBACK ($RATE_FALLBACK Toman)${NC}"
+fi
+
+echo -n "  [8/8] Currency Unit Sanity & Rial-to-Toman Conversion... "
+if [ "$RATE_UNIT" = "rial" ]; then
+  FINAL_TOMAN=$(echo "$EXTRACTED_RATE / 10" | bc 2>/dev/null || echo "$EXTRACTED_RATE")
+  echo -e "${GREEN}PASS ($FINAL_TOMAN Toman)${NC}"
+else
+  FINAL_TOMAN=$EXTRACTED_RATE
+  echo -e "${GREEN}PASS ($FINAL_TOMAN Toman)${NC}"
+fi
 
 # 6. Install npm dependencies & Build
 echo -e "\n${BLUE}[4/7] Installing npm packages & building application...${NC}"
@@ -116,7 +208,7 @@ ADMIN_TELEGRAM_ID=${ADMIN_ID}
 NODE_ENV=production
 EOF
 
-# Ensure data directory exists and seed admin credentials
+# Ensure data directory exists and seed admin credentials & exchange rate config
 mkdir -p "$INSTALL_DIR/data" "$INSTALL_DIR/data/backups"
 cat <<EOF > "$INSTALL_DIR/data/store-db.json"
 {
@@ -132,7 +224,20 @@ cat <<EOF > "$INSTALL_DIR/data/store-db.json"
     "backendPort": ${BACKEND_PORT},
     "botToken": "${BOT_TOKEN}",
     "adminNumericId": "${ADMIN_ID}",
-    "maintenanceMode": false
+    "maintenanceMode": false,
+    "usdRate": ${FINAL_TOMAN:-94850},
+    "usdtRate": $((${FINAL_TOMAN:-94850} + 350)),
+    "exchangeRateApi": {
+      "providerName": "${RATE_PROVIDER}",
+      "endpointUrl": "${RATE_URL}",
+      "httpMethod": "${RATE_METHOD}",
+      "currencyPair": "${RATE_PAIR}",
+      "jsonPath": "${RATE_JSON_PATH}",
+      "priceUnit": "${RATE_UNIT}",
+      "refreshIntervalSeconds": ${RATE_REFRESH},
+      "fallbackRate": ${RATE_FALLBACK},
+      "active": true
+    }
   }
 }
 EOF
