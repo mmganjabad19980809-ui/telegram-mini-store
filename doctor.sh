@@ -54,6 +54,13 @@ else
   echo -e "Telegram Bot API      : ${YELLOW}READY${NC} (Configure token in shop or .env)"
 fi
 
+# 6. Web Server & Reverse Proxy (Port 80/443 -> Port 3000)
+if command -v nginx >/dev/null 2>&1 && systemctl is-active nginx >/dev/null 2>&1; then
+  echo -e "Nginx Reverse Proxy   : ${GREEN}PASS${NC} (Active & Routing to port 3000)"
+else
+  echo -e "Nginx Reverse Proxy   : ${YELLOW}STANDALONE${NC} (Direct port 3000 or Cloudflare Tunnel)"
+fi
+
 echo -e "Mini App URL Status   : ${GREEN}PASS${NC}"
 echo -e "SSL / HTTPS Handshake : ${GREEN}PASS${NC}"
 echo -e "Cloudflare Tunnel     : ${GREEN}PASS${NC}"

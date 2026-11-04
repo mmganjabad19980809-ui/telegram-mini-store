@@ -100,8 +100,8 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
       bio: 'علاقه‌مند به خدمات دیجیتال و اینترنت آزاد',
       photoUrl: tgUser?.photo_url || '',
       vipTier: 'طلایی',
-      walletBalanceToman: 75000,
-      walletBalanceUsdt: 8.5,
+      orderCount: 1,
+      accountStatus: 'احراز شده',
       joinedDate: '۱۴۰۴/۱۰/۱۲',
     };
   });
@@ -109,7 +109,7 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
   const [editName, setEditName] = useState(customerProfile.name);
   const [editPhone, setEditPhone] = useState(customerProfile.phone);
   const [editBio, setEditBio] = useState(customerProfile.bio);
-  const [profileSubTab, setProfileSubTab] = useState<'orders' | 'info' | 'wallet'>('orders');
+  const [profileSubTab, setProfileSubTab] = useState<'orders' | 'info'>('orders');
 
   // Fetch Live Rates
   const refreshRates = async () => {
@@ -884,58 +884,41 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
             </div>
 
             <form onSubmit={handleSubmitOrder}>
-              {/* Payment Method Selector */}
-              <h3 className="text-sm sm:text-base font-extrabold text-[#101828] mb-2.5">
-                ۱. انتخاب روش پرداخت
-              </h3>
-              <div className="grid grid-cols-2 gap-2.5 mb-4">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('card')}
-                  className={`p-3 rounded-[14px] border text-center font-bold text-xs sm:text-sm transition ${
-                    paymentMethod === 'card'
-                      ? 'border-[#5b5ce2] bg-[#f0f1ff] text-[#5b5ce2]'
-                      : 'border-[#e4e7ec] text-[#667085]'
-                  }`}
-                >
-                  💳 کارت‌به‌کارت
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('stars')}
-                  className={`p-3 rounded-[14px] border text-center font-bold text-xs sm:text-sm transition ${
-                    paymentMethod === 'stars'
-                      ? 'border-[#5b5ce2] bg-[#f0f1ff] text-[#5b5ce2]'
-                      : 'border-[#e4e7ec] text-[#667085]'
-                  }`}
-                >
-                  ⭐️ Telegram Stars
-                </button>
-              </div>
+              {/* Payment Method Selector - Strictly Card-to-Card */}
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm sm:text-base font-extrabold text-[#101828] m-0">
+                    ۱. روش پرداخت (کارت‌به‌کارت بانکی شتاب)
+                  </h3>
+                  <span className="text-[11px] font-bold bg-[#ecfdf3] text-[#027a48] px-2.5 py-0.5 rounded-full border border-[#a6f4c5]">
+                    ✓ تنها روش پرداخت فعال
+                  </span>
+                </div>
 
-              {/* Card-to-Card details */}
-              {paymentMethod === 'card' ? (
-                <div className="border-2 border-dashed border-[#cfd3ff] rounded-[18px] p-5 text-center bg-[#f8f8ff] mb-6">
-                  <span className="text-xs text-[#667085] block mb-1">شماره کارت جهت واریز</span>
-                  <strong className="text-base sm:text-lg tracking-wider text-[#101828] font-black block my-1">
+                {/* Card-to-Card details box */}
+                <div className="border-2 border-dashed border-[#5b5ce2] rounded-[20px] p-5 text-center bg-gradient-to-br from-[#f8f9ff] to-[#f0f2ff] shadow-sm">
+                  <div className="text-xs text-[#5b5ce2] font-extrabold mb-1 flex items-center justify-center gap-1.5">
+                    <span>💳</span>
+                    <span>شماره کارت بانکی معتبر فروشگاه جهت واریز</span>
+                  </div>
+                  <strong className="text-lg sm:text-xl tracking-widest text-[#101828] font-mono font-black block my-2 select-all">
                     {config.cardNumber}
                   </strong>
-                  <small className="text-xs text-[#667085] block mb-3">به نام {config.cardOwner}</small>
+                  <div className="text-xs text-[#475467] font-bold mb-3">
+                    به نام: <span className="text-[#101828]">{config.cardOwner}</span>
+                    {config.bankName && <span className="mr-2 text-gray-500">({config.bankName})</span>}
+                  </div>
 
                   <button
                     type="button"
                     onClick={copyCardNumber}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-[#cfd3ff] rounded-xl text-xs font-bold text-[#5b5ce2] hover:bg-[#eef0ff] transition"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-[#cfd3ff] rounded-xl text-xs font-black text-[#5b5ce2] hover:bg-[#eef0ff] transition shadow-sm"
                   >
-                    {copiedCard ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedCard ? 'کپی شد' : 'کپی شماره کارت'}</span>
+                    {copiedCard ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    <span>{copiedCard ? '✓ شماره کارت کپی شد' : 'کپی شماره کارت'}</span>
                   </button>
                 </div>
-              ) : (
-                <div className="bg-[#fff9e6] border border-[#ffe082] rounded-[18px] p-4 text-xs leading-relaxed text-[#8d6e00] mb-6">
-                  ⭐️ پرداخت مستقیم تلگرام استارز (XTR). پس از تأیید در بات تلگرام، سفارش شما بدون نیاز به بررسی دستی فعال خواهد شد.
-                </div>
-              )}
+              </div>
 
               {/* Customer Information */}
               <h3 className="text-sm sm:text-base font-extrabold text-[#101828] mb-3">
@@ -1184,19 +1167,19 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
               </button>
             </div>
 
-            {/* Quick Wallet & Stats row */}
+            {/* Customer Status & Stats row (NO WALLET) */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-4">
               <div className="bg-[#f8f9fc] border border-[#e4e7ec] rounded-2xl p-3 text-center sm:text-right">
-                <span className="text-[11px] text-[#667085] block mb-0.5">موجودی کیف پول</span>
-                <b className="text-sm font-black text-[#5b5ce2] block">{formatMoney(customerProfile.walletBalanceToman)}</b>
+                <span className="text-[11px] text-[#667085] block mb-0.5">تعداد کل سفارش‌ها</span>
+                <b className="text-sm font-black text-[#5b5ce2] block">{orders.length} سفارش ثبت شده</b>
               </div>
               <div className="bg-[#f8f9fc] border border-[#e4e7ec] rounded-2xl p-3 text-center sm:text-right">
-                <span className="text-[11px] text-[#667085] block mb-0.5">اعتبار دلاری (USDT)</span>
-                <b className="text-sm font-black text-cyan-600 block">{customerProfile.walletBalanceUsdt} USDT</b>
+                <span className="text-[11px] text-[#667085] block mb-0.5">وضعیت حساب</span>
+                <b className="text-sm font-black text-emerald-600 block">✓ {customerProfile.accountStatus || 'احراز شده'}</b>
               </div>
               <div className="bg-[#f8f9fc] border border-[#e4e7ec] rounded-2xl p-3 text-center sm:text-right col-span-2 sm:col-span-1">
-                <span className="text-[11px] text-[#667085] block mb-0.5">تعداد سفارش‌ها</span>
-                <b className="text-sm font-black text-[#101828] block">{orders.length} سفارش ثبت شده</b>
+                <span className="text-[11px] text-[#667085] block mb-0.5">سطح کاربری</span>
+                <b className="text-sm font-black text-[#101828] block">مشتری {customerProfile.vipTier}</b>
               </div>
             </div>
 
@@ -1254,7 +1237,7 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
             )}
           </div>
 
-          {/* Subtabs inside Profile */}
+          {/* Subtabs inside Profile: Only Orders and Info */}
           <div className="flex gap-2 mb-4 bg-white p-1.5 rounded-[18px] border border-[#e4e7ec] shadow-sm">
             <button
               onClick={() => setProfileSubTab('orders')}
@@ -1276,18 +1259,7 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
               }`}
             >
               <User className="w-4 h-4" />
-              <span>اطلاعات کاربری</span>
-            </button>
-            <button
-              onClick={() => setProfileSubTab('wallet')}
-              className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${
-                profileSubTab === 'wallet'
-                  ? 'bg-[#5b5ce2] text-white shadow-sm'
-                  : 'text-[#667085] hover:text-[#101828]'
-              }`}
-            >
-              <Wallet className="w-4 h-4" />
-              <span>کیف پول</span>
+              <span>اطلاعات کاربری و هویت</span>
             </button>
           </div>
 
@@ -1428,28 +1400,7 @@ export const CustomerStore: React.FC<CustomerStoreProps> = ({
             </div>
           )}
 
-          {/* SUBTAB 3: WALLET & FINANCE */}
-          {profileSubTab === 'wallet' && (
-            <div className="bg-white border border-[#e4e7ec] rounded-[22px] p-5 shadow-sm space-y-4">
-              <div className="bg-gradient-to-br from-[#5b5ce2] to-[#7c5cff] text-white p-5 rounded-[20px] shadow-md">
-                <span className="text-xs text-[#d8dbff] block mb-1">موجودی کیف پول شما:</span>
-                <div className="text-2xl font-black mb-2">{formatMoney(customerProfile.walletBalanceToman)}</div>
-                <div className="text-sm font-bold text-cyan-200">معادل تقریبی: {customerProfile.walletBalanceUsdt} USDT (تتر)</div>
-              </div>
 
-              <div className="p-4 bg-[#f8f9fc] border border-[#e4e7ec] rounded-xl text-xs leading-relaxed text-[#475467]">
-                💡 جهت شارژ مستقیم کیف پول خود می‌توانید از طریق درگاه آنلاین شاپرک، کارت‌به‌کارت و یا واریز تتر (USDT-TRC20) اقدام نمایید. با موجودی کیف پول، تمام سفارش‌ها به صورت آنی و بدون وقفه تایید خواهند شد.
-              </div>
-
-              <button
-                onClick={() => setView('support')}
-                className="w-full py-3 rounded-xl bg-[#f0f1ff] hover:bg-[#e4e7ff] text-[#5b5ce2] font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>درخواست افزایش موجودی / هماهنگی با پشتیبانی</span>
-              </button>
-            </div>
-          )}
         </div>
       )}
 

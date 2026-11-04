@@ -36,7 +36,7 @@ fi
 # 2. System Prerequisites
 echo -e "${BLUE}[1/7] Checking & Installing System Dependencies...${NC}"
 apt-get update -y
-apt-get install -y curl wget git jq ufw build-essential libssl-dev
+apt-get install -y curl wget git jq ufw build-essential libssl-dev nginx certbot python3-certbot-nginx
 
 # 3. Check / Install Node.js 22 LTS
 echo -e "${BLUE}[2/7] Checking Node.js Runtime...${NC}"
@@ -161,14 +161,53 @@ systemctl daemon-reload
 systemctl enable tsm-store
 systemctl restart tsm-store
 
-# 8. Setup Global CLI Command 'shop'
-echo -e "\n${BLUE}[6/7] Installing 'shop' Terminal Command...${NC}"
+# 8. Configure Nginx Reverse Proxy (Port 80/443 -> Port 3000)
+echo -e "\n${BLUE}[6/8] Configuring Nginx Reverse Proxy for ${STORE_DOMAIN}...${NC}"
+mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+cat <<EOF > /etc/nginx/sites-available/tsm-store
+server {
+    listen 80;
+    server_name ${STORE_DOMAIN};
+
+    location / {
+        proxy_pass http://127.0.0.1:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+        client_max_body_size 50M;
+    }
+}
+EOF
+
+ln -sf /etc/nginx/sites-available/tsm-store /etc/nginx/sites-enabled/tsm-store
+rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+
+if command -v nginx >/dev/null 2>&1; then
+  nginx -t 2>/dev/null && systemctl reload nginx 2>/dev/null || systemctl restart nginx 2>/dev/null || true
+  echo -e "${GREEN}✓ Nginx reverse proxy configured (Port 80 -> ${BACKEND_PORT})${NC}"
+
+  # Attempt Certbot SSL if domain is not localhost or example.com
+  if [ "${STORE_DOMAIN}" != "shop.example.com" ] && [ "${STORE_DOMAIN}" != "localhost" ]; then
+    echo -e "${YELLOW}Attempting automatic Let's Encrypt SSL certificate issuance...${NC}"
+    certbot --nginx -d "${STORE_DOMAIN}" --non-interactive --agree-tos --register-unsafely-without-email --redirect 2>/dev/null || {
+      echo -e "${YELLOW}Notice: Direct Certbot SSL skipped (Ensure DNS points to this server IP or use Cloudflare SSL).${NC}"
+    }
+  fi
+fi
+
+# 9. Setup Global CLI Command 'shop'
+echo -e "\n${BLUE}[7/8] Installing 'shop' Terminal Command...${NC}"
 chmod +x "$INSTALL_DIR/shop" || true
 ln -sf "$INSTALL_DIR/shop" /usr/local/bin/shop
 chmod +x /usr/local/bin/shop
 
-# 9. Health & Diagnostics Check (Section 44)
-echo -e "\n${BLUE}[7/7] Running Verification & Diagnostics...${NC}"
+# 10. Health & Diagnostics Check (Section 44)
+echo -e "\n${BLUE}[8/8] Running Verification & Diagnostics...${NC}"
 sleep 3
 
 echo -e "\n${CYAN}=================================================="

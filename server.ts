@@ -12,6 +12,18 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
 app.use(express.json({ limit: '15mb' }));
 
+// Dynamic Public URL auto-detection from incoming requests
+let runtimeDetectedUrl = '';
+
+app.use((req, _res, next) => {
+  const host = (req.headers['x-forwarded-host'] || req.headers.host || '') as string;
+  const proto = (req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http')) as string;
+  if (host && !host.includes('localhost') && !host.includes('127.0.0.1')) {
+    runtimeDetectedUrl = `${proto}://${host}`;
+  }
+  next();
+});
+
 // Helper to reliably parse .env even if systemd didn't pass variables or encoding is non-standard
 function parseDotEnvFile(): Record<string, string> {
   const envMap: Record<string, string> = {};
@@ -107,20 +119,50 @@ function saveDb(data: any) {
   }
 }
 
-// Helper to determine the public WebApp URL
+// Helper to determine the public WebApp URL (Required for Telegram Mini Apps on phones)
 function getPublicAppUrl(): string {
   const db = loadDb();
-  let url = getEnv('APP_URL', '');
-  if (!url && db.config?.domain) {
-    url = `https://${db.config.domain}`;
+  // 1. Manually configured public WebApp URL from Admin Panel or .env
+  if (db.config?.publicAppUrl && !db.config.publicAppUrl.includes('localhost') && !db.config.publicAppUrl.includes('127.0.0.1')) {
+    let u = db.config.publicAppUrl.trim();
+    return u.startsWith('http') ? u : `https://${u}`;
   }
-  if (!url) {
-    url = `http://localhost:${PORT}`;
+  // 2. Runtime captured host from incoming browser requests (e.g. Cloud Run, VPS domain, Tunnel)
+  if (runtimeDetectedUrl) {
+    return runtimeDetectedUrl;
   }
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = `https://${url}`;
+  // 3. Environment variable APP_URL
+  const envUrl = getEnv('APP_URL', '');
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1') && !envUrl.includes('shop.example.com')) {
+    return envUrl.startsWith('http') ? envUrl : `https://${envUrl}`;
   }
-  return url;
+  // 4. Configured domain
+  if (db.config?.domain && db.config.domain !== 'shop.example.com' && !db.config.domain.includes('localhost')) {
+    return `https://${db.config.domain.replace(/^https?:\/\//, '')}`;
+  }
+  // 5. Fallback
+  if (envUrl) {
+    return envUrl.startsWith('http') ? envUrl : `https://${envUrl}`;
+  }
+  return `http://localhost:${PORT}`;
+}
+
+// Set persistent WebApp Menu Button at the bottom-left of Telegram chat
+async function syncTelegramMenuButton(token: string, webAppUrl: string) {
+  if (!token || !webAppUrl || !webAppUrl.startsWith('https://')) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/setChatMenuButton`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        menu_button: {
+          type: 'web_app',
+          text: '🛍 فروشگاه',
+          web_app: { url: webAppUrl },
+        },
+      }),
+    });
+  } catch (_) {}
 }
 
 // ==========================================
@@ -275,15 +317,94 @@ async function handleTelegramUpdate(token: string, update: any) {
   const appUrl = getPublicAppUrl();
   const isMaintenance = !!db.config?.maintenanceMode;
 
-  // Standard Reply Keyboard displayed on the user's phone
+  const senderId = String(message.from?.id || '');
+  const adminId = String(db.config?.adminNumericId || getEnv('ADMIN_TELEGRAM_ID', ''));
+  const isAdmin = senderId === adminId || (adminId && senderId.includes(adminId));
+
+  // Admin dynamic URL command: /url https://... or /seturl https://... or /domain https://...
+  if (isAdmin && (text.startsWith('/url ') || text.startsWith('/seturl ') || text.startsWith('/domain '))) {
+    const parts = rawText.split(/\s+/);
+    let target = parts[1]?.trim() || '';
+    if (target) {
+      if (!target.startsWith('http://') && !target.startsWith('https://')) {
+        target = `https://${target}`;
+      }
+      db.config = db.config || {};
+      db.config.publicAppUrl = target;
+      db.config.domain = target.replace(/^https?:\/\//, '');
+      saveDb(db);
+      process.env.APP_URL = target;
+
+      // Update .env if exists
+      try {
+        const envPath = path.join(__dirname, '.env');
+        if (fs.existsSync(envPath)) {
+          let envContent = fs.readFileSync(envPath, 'utf-8');
+          if (envContent.includes('APP_URL=')) {
+            envContent = envContent.replace(/APP_URL=.*/, `APP_URL=${target}`);
+          } else {
+            envContent += `\nAPP_URL=${target}\n`;
+          }
+          fs.writeFileSync(envPath, envContent, 'utf-8');
+        }
+      } catch (_) {}
+
+      await syncTelegramMenuButton(token, target);
+
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `✅ **آدرس مینی‌اپ با موفقیت ثبت و فعال شد!**\n\n🌐 آدرس جدید: \`${target}\`\n\nدکمه باز کردن فروشگاه و دکمه منوی تلگرام با موفقیت به این آدرس متصل شدند. هم‌اکنون می‌توانید روی دکمه فروشگاه کلیک فرمایید.`,
+          parse_mode: 'Markdown',
+        }),
+      });
+      return;
+    }
+  }
+
+  // Extract Bot Button Configuration (Default or Custom from Admin Panel)
+  const botButtons = db.config?.botButtons || {
+    storeButtonText: '🛍 ورود به فروشگاه (Mini App)',
+    storeButtonActive: true,
+    supportButtonText: '🎧 پشتیبانی',
+    supportButtonActive: true,
+    supportAction: 'miniapp' as const,
+    supportTelegramUrl: '',
+    bannerImage: '',
+    welcomeMessage: '',
+  };
+
+  const storeBtnText = botButtons.storeButtonText || '🛍 ورود به فروشگاه (Mini App)';
+  const supportBtnText = botButtons.supportButtonText || '🎧 پشتیبانی';
+  const isStoreActive = botButtons.storeButtonActive !== false;
+  const isSupportActive = botButtons.supportButtonActive !== false;
+
+  // Build Inline Keyboard (ONLY requested buttons: 1. ورود به فروشگاه, 2. پشتیبانی)
+  const inlineButtons: any[][] = [];
+  if (isStoreActive) {
+    inlineButtons.push([{ text: storeBtnText, web_app: { url: appUrl } }]);
+  }
+  if (isSupportActive) {
+    if (botButtons.supportAction === 'telegram' && botButtons.supportTelegramUrl) {
+      inlineButtons.push([{ text: supportBtnText, url: botButtons.supportTelegramUrl }]);
+    } else {
+      inlineButtons.push([{ text: supportBtnText, web_app: { url: `${appUrl}?view=support` } }]);
+    }
+  }
+
+  // Build Bottom Reply Keyboard (Below Typing Field - ONLY requested 2 buttons)
+  const keyboardRows: any[][] = [];
+  if (isStoreActive) {
+    keyboardRows.push([{ text: storeBtnText, web_app: { url: appUrl } }]);
+  }
+  if (isSupportActive) {
+    keyboardRows.push([{ text: supportBtnText }]);
+  }
+
   const replyKeyboard = {
-    keyboard: [
-      [{ text: '🛍 ورود به فروشگاه (Mini App)', web_app: { url: appUrl } }],
-      [{ text: 'خرید VPN 🚀' }, { text: 'آفرهای ویژه و تخفیف‌ها 🎁' }],
-      [{ text: 'پرداخت‌های درون‌برنامه‌ای 💎' }, { text: 'درخواست سفارش اختصاصی 🛒' }],
-      [{ text: 'شماره کارت و روش‌های پرداخت 💳' }, { text: 'پشتیبانی و راهنما 📞' }],
-      [{ text: '🧾 سفارش‌های من' }],
-    ],
+    keyboard: keyboardRows,
     resize_keyboard: true,
     is_persistent: true,
   };
@@ -293,6 +414,15 @@ async function handleTelegramUpdate(token: string, update: any) {
     const maintenanceTitle = db.config?.maintenanceTitle || 'فروشگاه در حال به‌روزرسانی است';
     const maintenanceMsg = db.config?.maintenanceMessage || 'کاربر گرامی، جهت ارتقا و به‌روزرسانی سرور، فروشگاه موقتاً غیرفعال شده است. به زودی در دسترس شما خواهیم بود.';
 
+    const maintenanceButtons: any[][] = [];
+    if (isSupportActive) {
+      if (botButtons.supportAction === 'telegram' && botButtons.supportTelegramUrl) {
+        maintenanceButtons.push([{ text: supportBtnText, url: botButtons.supportTelegramUrl }]);
+      } else {
+        maintenanceButtons.push([{ text: supportBtnText, web_app: { url: `${appUrl}?view=support` } }]);
+      }
+    }
+
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -301,9 +431,7 @@ async function handleTelegramUpdate(token: string, update: any) {
         text: `⚠️ **${maintenanceTitle}**\n\n${maintenanceMsg}\n\nلطفاً دقایقی دیگر مراجعه فرمایید یا جهت موارد ضروری با پشتیبانی در ارتباط باشید.`,
         parse_mode: 'Markdown',
         reply_markup: {
-          inline_keyboard: [
-            [{ text: '🎧 ارتباط با پشتیبانی', web_app: { url: `${appUrl}?view=support` } }],
-          ],
+          inline_keyboard: maintenanceButtons,
         },
       }),
     });
@@ -313,228 +441,115 @@ async function handleTelegramUpdate(token: string, update: any) {
   // 2. /start or Welcome
   if (text.startsWith('/start') || text === 'شروع') {
     const firstName = message.from?.first_name || 'کاربر گرامی';
-    const welcome = `سلام ${firstName} عزیز! 👋\nبه **${storeName}** خوش آمدید ✨\n\n🔹 ارائه برترین کانفیگ‌ها و سرورهای اختصاصی VPN با آی‌پی ثابت\n🔹 پرداخت‌های ارزی، درون‌برنامه‌ای و گیفت‌کارت\n🔹 تحویل آنی، بدون قطعی و پشتیبانی ۲۴ ساعته\n\nبرای شروع خرید و مشاهده کلیه پلن‌ها، روی دکمه زیر کلیک کنید:`;
+    let warningNote = '';
+    if (!appUrl.startsWith('https://') || appUrl.includes('localhost') || appUrl.includes('127.0.0.1')) {
+      warningNote = `\n\n⚠️ **راهنمای مدیر:** آدرس دامنه شما روی \`${appUrl}\` است. جهت تغییر آدرس می‌توانید از دستور زیر استفاده فرمایید:\n\`/url https://your-domain.com\``;
+    }
 
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: welcome,
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🛍 باز کردن فروشگاه (Mini App)', web_app: { url: appUrl } }],
-            [
-              { text: '🚀 خرید سریع VPN', web_app: { url: `${appUrl}?category=vpn` } },
-              { text: '🎁 تخفیف‌ها و آفرها', web_app: { url: `${appUrl}?view=offers` } },
-            ],
-            [{ text: '🎧 پشتیبانی تلگرام', web_app: { url: `${appUrl}?view=support` } }],
-          ],
-        },
-      }),
-    });
+    const defaultWelcome = `سلام ${firstName} عزیز! 👋\nبه **${storeName}** خوش آمدید ✨\n\n🔹 ارائه برترین کانفیگ‌ها و سرورهای اختصاصی VPN با آی‌پی ثابت\n🔹 پرداخت آسان به صورت کارت به کارت بانکی شتاب\n🔹 پشتیبانی آنلاین و تحویل فوری\n\nجهت ورود به فروشگاه و ثبت سفارش، روی دکمه زیر کلیک نمایید:${warningNote}`;
+    const welcome = botButtons.welcomeMessage || db.config?.welcomeMessage || defaultWelcome;
 
-    // Also send bottom persistent keyboard
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: 'از منوی زیر نیز می‌توانید بخش مورد نظرتان را سریع انتخاب کنید 👇',
-        reply_markup: replyKeyboard,
-      }),
-    });
+    // If an image banner is configured in Admin Panel, send as Photo with Caption
+    let photoSent = false;
+    if (botButtons.bannerImage && botButtons.bannerImage.startsWith('http')) {
+      try {
+        const photoRes = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            photo: botButtons.bannerImage,
+            caption: welcome,
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: inlineButtons,
+            },
+          }),
+        });
+        const pData: any = await photoRes.json();
+        if (pData.ok) {
+          photoSent = true;
+        }
+      } catch (_) {
+        photoSent = false;
+      }
+    }
+
+    if (!photoSent) {
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: welcome,
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: inlineButtons,
+          },
+        }),
+      });
+    }
+
+    // Always send the bottom persistent 2-button reply keyboard
+    if (keyboardRows.length > 0) {
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: 'برای دسترسی سریع، از دکمه‌های زیر نیز می‌توانید استفاده کنید:',
+          reply_markup: replyKeyboard,
+        }),
+      });
+    }
     return;
   }
 
-  // 3. خرید VPN
-  if (text.includes('vpn') || text.includes('خرید vpn') || text.includes('فیلترشکن')) {
-    const msg = `🚀 **پلن‌های پرسرعت VPN - اختصاصی ${storeName}**\n\n` +
-      `⚡ پروتکل‌های پیشرفته: V2Ray (VLESS / VMess), WireGuard, OpenVPN, Cisco AnyConnect\n` +
-      `🌐 لوکیشن‌های اختصاصی: آلمان 🇩🇪، هلند 🇳🇱، فنلاند 🇫🇮، فرانسه 🇫🇷، ترکیه 🇹🇷\n` +
-      `🔒 بدون قطعی، مناسب کلیه اپراتورها (همراه‌اول، ایرانسل، مخابرات، رایتل و شاتل)\n\n` +
-      `جهت مشاهده تعرفه‌ها، حجم‌ها و سفارش فوری، روی دکمه زیر کلیک کنید:`;
+  // 3. Support & Contact Handler
+  if (
+    text.includes('پشتیبانی') ||
+    text.includes('support') ||
+    text.includes('راهنما') ||
+    text === '/help' ||
+    text === '/support' ||
+    rawText === supportBtnText
+  ) {
+    const supportMsg = db.config?.supportMessage || `📞 **مرکز پشتیبانی ${storeName}**\n\n🔹 پاسخگویی ۲۴ ساعته در ۷ روز هفته\n🔹 راهنمایی سفارش و پیگیری خریدها\n\nجهت ارسال پیام به پشتیبانی از دکمه زیر استفاده فرمایید:`;
+
+    const supportInline: any[][] = [];
+    if (botButtons.supportAction === 'telegram' && botButtons.supportTelegramUrl) {
+      supportInline.push([{ text: supportBtnText, url: botButtons.supportTelegramUrl }]);
+    } else {
+      supportInline.push([{ text: supportBtnText, web_app: { url: `${appUrl}?view=support` } }]);
+    }
+    if (isStoreActive) {
+      supportInline.push([{ text: storeBtnText, web_app: { url: appUrl } }]);
+    }
 
     await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: chatId,
-        text: msg,
+        text: supportMsg,
         parse_mode: 'Markdown',
         reply_markup: {
-          inline_keyboard: [
-            [{ text: '🚀 مشاهده و خرید اشتراک VPN', web_app: { url: `${appUrl}?category=vpn` } }],
-          ],
-        },
-      }),
-    });
-    return;
-  }
-
-  // 4. آفرهای ویژه و تخفیف‌ها
-  if (text.includes('آفر') || text.includes('تخفیف')) {
-    const msg = `🎁 **آفرهای ویژه و کدهای تخفیف فعال ${storeName}**\n\n` +
-      `🔥 تخفیف ۲۰٪ ویژه خرید اول با کد: **MANOTO20**\n` +
-      `🔥 اشتراک ۳ ماهه نامحدود با ۲۵٪ تخفیف ویژه فصلی\n` +
-      `🔥 هدیه گیفت کارت ۵ دلاری برای خریدهای بالای ۵۰ تتر\n\n` +
-      `جهت فعال‌سازی و اعمال تخفیف در سبد خرید وارد مینی‌اپ شوید:`;
-
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: msg,
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🎁 مشاهده جشنواره تخفیف‌ها', web_app: { url: `${appUrl}?view=offers` } }],
-          ],
-        },
-      }),
-    });
-    return;
-  }
-
-  // 5. پرداخت‌های درون‌برنامه‌ای
-  if (text.includes('درون‌برنامه') || text.includes('درون برنامه') || text.includes('stars') || text.includes('نیترو') || text.includes('پرمیوم')) {
-    const msg = `💎 **خدمات ارزی و درون‌برنامه‌ای بین‌المللی**\n\n` +
-      `🔹 استارز تلگرام (Telegram Stars) به قیمت کارگزاری مستقیم\n` +
-      `🔹 اشتراک پرمیوم تلگرام (۳ ماهه، ۶ ماهه، یکساله)\n` +
-      `🔹 دیسکورد نیترو (Discord Nitro Boost)\n` +
-      `🔹 گیفت کارت‌های استیم، اپل، گوگل پلی و پلی‌استیشن\n` +
-      `🔹 شارژ اکانت‌های اسپاتیفای و یوتیوب پرمیوم\n\n` +
-      `برای سفارش مستقیم از دکمه زیر استفاده کنید:`;
-
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: msg,
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '💎 بخش پرداخت‌های درون‌برنامه‌ای', web_app: { url: `${appUrl}?category=in-app` } }],
-          ],
+          inline_keyboard: supportInline,
         },
       }),
     });
     return;
   }
 
-  // 6. درخواست سفارش اختصاصی
-  if (text.includes('اختصاصی') || text.includes('سفارش اختصاصی')) {
-    const msg = `🛒 **درخواست سفارش اختصاصی و عمده**\n\n` +
-      `اگر به کانفیگ اختصاصی با پورت مشخص، سرور مجازی (VPS) شخصی، ای‌پی ثابت ترید یا اکانت شرکتی نیاز دارید، پشتیبانان فنی ما در کمترین زمان کانفیگ مد نظر شما را آماده خواهند کرد.\n\n` +
-      `برای ثبت درخواست مستقیم وارد مینی‌اپ شوید:`;
-
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: msg,
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🛒 ثبت سفارش اختصاصی', web_app: { url: `${appUrl}?view=custom-order` } }],
-            [{ text: '📞 گفتگو با کارشناس پشتیبانی', web_app: { url: `${appUrl}?view=support` } }],
-          ],
-        },
-      }),
-    });
-    return;
-  }
-
-  // 7. شماره کارت و روش‌های پرداخت
-  if (text.includes('شماره کارت') || text.includes('روش‌های پرداخت') || text.includes('کارت به کارت') || text.includes('تتر')) {
-    const msg = `💳 **روش‌های پرداخت امن ${storeName}**\n\n` +
-      `۱️⃣ **کارت به کارت شتابی (تومان):**\n` +
-      `شماره کارت: \`۶۰۳۷-۹۹۷۹-۱۴۰۵-۸۸۲۱\`\n` +
-      `به نام: مدیریت فروشگاه من و تو\n\n` +
-      `۲️⃣ **ارز دیجیتال (USDT - Tether TRC20):**\n` +
-      `آدرس ولت: \`TQn9Y2khsA9102jslka81029381kjahsd2910\`\n\n` +
-      `۳️⃣ **درگاه پرداخت آنلاین شاپرکی:**\n` +
-      `فعال در هنگام نهایی‌سازی سفارش در مینی‌اپ\n\n` +
-      `⚠️ پس از واریز، کافیست تصویر فیش واریزی خود را در مینی‌اپ آپلود کنید تا سفارشتان فوراً تایید شود.`;
-
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: msg,
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🧾 آپلود فیش و تکمیل سفارش', web_app: { url: `${appUrl}?view=checkout` } }],
-          ],
-        },
-      }),
-    });
-    return;
-  }
-
-  // 8. پشتیبانی و راهنما
-  if (text.includes('پشتیبانی') || text.includes('راهنما') || text === '/help' || text === '/support') {
-    const msg = `📞 **مرکز پشتیبانی و راهنمای مشتریان ${storeName}**\n\n` +
-      `🔹 پاسخگویی ۲۴ ساعته در ۷ روز هفته\n` +
-      `🔹 راهنمای اتصال سریع برای iOS, Android, Windows و Mac\n` +
-      `🔹 تعویض سرور در صورت بروز هرگونه اختلال اینترنتی\n\n` +
-      `جهت ارسال پیام به پشتیبانی آنلاین از دکمه زیر استفاده فرمایید:`;
-
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: msg,
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🎧 ورود به چت پشتیبانی', web_app: { url: `${appUrl}?view=support` } }],
-            [{ text: '🛍 باز کردن فروشگاه', web_app: { url: appUrl } }],
-          ],
-        },
-      }),
-    });
-    return;
-  }
-
-  // 9. پیگیری سفارشات
-  if (text.includes('سفارش') || text === '/orders') {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: '🧾 **پیگیری و مشاهده سفارش‌ها:**\nبرای مشاهده سوابق خرید، لایسنس‌ها، کانفیگ‌های فعال و وضعیت فاکتور روی دکمه زیر کلیک نمایید:',
-        parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '🧾 مشاهده سفارش‌های من', web_app: { url: `${appUrl}?view=orders` } }],
-          ],
-        },
-      }),
-    });
-    return;
-  }
-
-  // 10. Fallback for any other text
+  // 4. Default Fallback Message (Directs user to the 2 buttons)
   await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       chat_id: chatId,
-      text: `پیام شما دریافت شد. جهت ثبت سفارش، مشاهده قیمت‌ها و خدمات، لطفاً از دکمه‌های زیر استفاده فرمایید:`,
+      text: `پیام شما دریافت شد. جهت ورود به فروشگاه و استفاده از خدمات، لطفاً از دکمه‌های زیر استفاده فرمایید:`,
       reply_markup: {
-        inline_keyboard: [
-          [{ text: '🛍 ورود به فروشگاه (Mini App)', web_app: { url: appUrl } }],
-          [{ text: '📞 پشتیبانی آنلاین', web_app: { url: `${appUrl}?view=support` } }],
-        ],
+        inline_keyboard: inlineButtons,
       },
     }),
   });
@@ -707,6 +722,57 @@ app.post('/api/config', (req: Request, res: Response) => {
   res.json({ ok: true, config: db.config });
 });
 
+// Dedicated Public Mini App URL Getter & Setter
+app.get('/api/config/url', (_req: Request, res: Response) => {
+  res.json({
+    url: getPublicAppUrl(),
+    detected: runtimeDetectedUrl || null,
+  });
+});
+
+app.post('/api/config/set-url', async (req: Request, res: Response) => {
+  let { url, botToken } = req.body;
+  if (!url || typeof url !== 'string') {
+    return res.status(400).json({ ok: false, error: 'URL is required' });
+  }
+  url = url.trim();
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://${url}`;
+  }
+
+  const db = loadDb();
+  db.config = db.config || {};
+  db.config.publicAppUrl = url;
+  db.config.domain = url.replace(/^https?:\/\//, '');
+  db.logs = db.logs || [];
+  db.logs.unshift(`[${new Date().toISOString()}] Public WebApp URL updated to ${url}`);
+  saveDb(db);
+
+  process.env.APP_URL = url;
+
+  // Sync to .env
+  try {
+    const envPath = path.join(__dirname, '.env');
+    if (fs.existsSync(envPath)) {
+      let envContent = fs.readFileSync(envPath, 'utf-8');
+      if (envContent.includes('APP_URL=')) {
+        envContent = envContent.replace(/APP_URL=.*/, `APP_URL=${url}`);
+      } else {
+        envContent += `\nAPP_URL=${url}\n`;
+      }
+      fs.writeFileSync(envPath, envContent, 'utf-8');
+    }
+  } catch (_) {}
+
+  // Sync with Telegram bot chat menu button
+  const token = botToken || botState.token || getEnv('TELEGRAM_BOT_TOKEN', db.config?.botToken || '');
+  if (token) {
+    await syncTelegramMenuButton(token, url);
+  }
+
+  res.json({ ok: true, url, message: 'WebApp URL saved and synced with Telegram bot' });
+});
+
 // Telegram Bot Webhook endpoint
 app.post('/api/telegram/webhook', (req: Request, res: Response) => {
   const update = req.body;
@@ -788,8 +854,8 @@ app.get('/api/customer/profile/:telegramId', (req: Request, res: Response) => {
     phone: '',
     bio: 'علاقه‌مند به خدمات دیجیتال و اینترنت آزاد',
     vipTier: 'نقره‌ای',
-    walletBalanceToman: 0,
-    walletBalanceUsdt: 0,
+    orderCount: 0,
+    accountStatus: 'احراز شده',
     joinedDate: new Date().toLocaleDateString('fa-IR'),
   };
   res.json(customer);
@@ -810,8 +876,8 @@ app.post('/api/customer/profile', (req: Request, res: Response) => {
     phone: phone || db.customers[id]?.phone || '',
     bio: bio || db.customers[id]?.bio || 'علاقه‌مند به خدمات دیجیتال و اینترنت آزاد',
     vipTier: db.customers[id]?.vipTier || 'نقره‌ای',
-    walletBalanceToman: db.customers[id]?.walletBalanceToman || 0,
-    walletBalanceUsdt: db.customers[id]?.walletBalanceUsdt || 0,
+    orderCount: db.customers[id]?.orderCount || 0,
+    accountStatus: db.customers[id]?.accountStatus || 'احراز شده',
     joinedDate: db.customers[id]?.joinedDate || new Date().toLocaleDateString('fa-IR'),
     updatedAt: new Date().toISOString(),
   };

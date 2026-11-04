@@ -37,7 +37,15 @@ get_env_val() {
 
 show_menu() {
   clear
-  local DOMAIN="$(get_env_val "APP_URL" "https://shop.example.com")"
+  local DOMAIN="$(get_env_val "APP_URL" "")"
+  if [ -z "$DOMAIN" ] || [ "$DOMAIN" = "https://shop.example.com" ]; then
+    local LIVE_URL="$(curl -s http://127.0.0.1:3000/api/config/url 2>/dev/null | grep -o '"url":"[^"]*' | cut -d'"' -f4 || echo '')"
+    if [ -n "$LIVE_URL" ]; then
+      DOMAIN="$LIVE_URL"
+    fi
+  fi
+  [ -z "$DOMAIN" ] && DOMAIN="${RED}Not Set (Enter Domain in Option 10 or 17)${NC}"
+
   local PORT="$(get_env_val "PORT" "3000")"
   local BOT_TOKEN="$(get_env_val "TELEGRAM_BOT_TOKEN" "")"
   local SERVICE_STATUS="$(systemctl is-active tsm-store 2>/dev/null || echo 'active')"
@@ -48,7 +56,7 @@ show_menu() {
   echo -e "           TELEGRAM STORE MANAGEMENT"
   echo -e "==================================================${NC}"
   echo -e "${YELLOW}SYSTEM INFORMATION${NC}"
-  echo -e "Domain       : ${DOMAIN}"
+  echo -e "Domain / URL : ${DOMAIN}"
   echo -e "SSL          : ${GREEN}Active${NC}"
   if echo "$BOT_STATUS_JSON" | grep -q '"isPolling":true'; then
     echo -e "Telegram Bot : ${GREEN}Connected (Active Polling)${NC}"
@@ -84,6 +92,7 @@ show_menu() {
   echo -e "[14] System Diagnostics      - Barresi System"
   echo -e "[15] GitHub Information      - Etelaate GitHub"
   echo -e "[16] Telegram Bot Manager    - Modiriate Robat Telegram"
+  echo -e "[17] Quick Cloudflare Tunnel - Tunnel Fori bedone Domain (SSL Raygan)"
   echo -e "[00] Exit                    - Khorooj"
   echo -e "${CYAN}==================================================${NC}"
   read -rp "Select option: " opt
@@ -170,13 +179,71 @@ show_menu() {
       show_menu
       ;;
     10)
-      echo -e "${CYAN}=== MANAGE SSL & DOMAIN ===${NC}"
+      echo -e "${CYAN}=== MANAGE SSL, NGINX REVERSE PROXY & DOMAIN ===${NC}"
       echo -e "Current Public URL: $(get_env_val "APP_URL" "https://shop.example.com")"
-      read -rp "Enter new domain (e.g. shop.mydomain.com): " new_dom
+      echo -e "Backend Internal Port: $(get_env_val "PORT" "3000")"
+      read -rp "Enter your Domain (e.g. shopstore.isiranserver.ir): " new_dom
       if [ -n "$new_dom" ]; then
-        sed -i "s|APP_URL=.*|APP_URL=https://${new_dom}|" "$INSTALL_DIR/.env"
+        new_dom="$(echo "$new_dom" | sed -e 's|^https://||' -e 's|^http://||' -e 's|/$||')"
+        local B_PORT="$(get_env_val "PORT" "3000")"
+
+        if grep -q "APP_URL=" "$INSTALL_DIR/.env" 2>/dev/null; then
+          sed -i "s|APP_URL=.*|APP_URL=https://${new_dom}|" "$INSTALL_DIR/.env"
+        else
+          echo "APP_URL=https://${new_dom}" >> "$INSTALL_DIR/.env"
+        fi
+
+        # 1. Update live API and Telegram Menu Button
+        curl -s -X POST -H "Content-Type: application/json" \
+          -d "{\"url\":\"https://${new_dom}\"}" \
+          http://127.0.0.1:3000/api/config/set-url >/dev/null || true
+
+        # 2. Automatically configure Nginx Reverse Proxy (Port 80/443 -> Port 3000)
+        echo -e "${BLUE}Configuring Nginx Reverse Proxy for ${new_dom} -> http://127.0.0.1:${B_PORT}...${NC}"
+        if ! command -v nginx >/dev/null 2>&1; then
+          echo -e "${YELLOW}Installing Nginx and Certbot...${NC}"
+          apt-get update -y && apt-get install -y nginx certbot python3-certbot-nginx || true
+        fi
+
+        mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+        cat <<EOF > /etc/nginx/sites-available/tsm-store
+server {
+    listen 80;
+    server_name ${new_dom};
+
+    location / {
+        proxy_pass http://127.0.0.1:${B_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
+        client_max_body_size 50M;
+    }
+}
+EOF
+
+        ln -sf /etc/nginx/sites-available/tsm-store /etc/nginx/sites-enabled/tsm-store
+        rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+
+        if command -v nginx >/dev/null 2>&1; then
+          nginx -t 2>/dev/null && systemctl reload nginx 2>/dev/null || systemctl restart nginx 2>/dev/null || true
+          echo -e "${GREEN}✓ Nginx configured and reloaded.${NC}"
+
+          echo -e "${YELLOW}Requesting/Renewing SSL Certificate via Certbot...${NC}"
+          certbot --nginx -d "${new_dom}" --non-interactive --agree-tos --register-unsafely-without-email --redirect 2>/dev/null || {
+            echo -e "${YELLOW}Notice: If direct SSL certbot failed, ensure your DNS A-Record points to this server IP.${NC}"
+            echo -e "${YELLOW}Tip: You can also use Cloudflare Flexible SSL or Option [17] for instant free tunnel!${NC}"
+          }
+        fi
+
         systemctl restart tsm-store 2>/dev/null || true
-        echo -e "${GREEN}Domain updated to https://${new_dom}${NC}"
+        echo -e "\n${GREEN}✓ Domain updated to https://${new_dom}!${NC}"
+        echo -e "${GREEN}✓ Nginx reverse proxy active: Port 443 -> Port 3000${NC}"
+        echo -e "${GREEN}✓ Telegram bot menu button synchronized!${NC}"
       fi
       read -rp "Press Enter to return to menu..." _
       show_menu
@@ -305,6 +372,42 @@ show_menu() {
           curl -s -X POST http://127.0.0.1:3000/api/bot/start | jq . 2>/dev/null || true
           ;;
       esac
+      read -rp "Press Enter to return to menu..." _
+      show_menu
+      ;;
+    17)
+      echo -e "${CYAN}=== QUICK CLOUDFLARE TUNNEL (FREE SSL & HTTPS DOMAIN) ===${NC}"
+      echo -e "${YELLOW}Instant public HTTPS URL for Telegram Mini App without needing a bought domain.${NC}"
+      if ! command -v cloudflared >/dev/null 2>&1; then
+        echo -e "${BLUE}Installing cloudflared binary...${NC}"
+        ARCH="$(uname -m)"
+        if [ "$ARCH" = "x86_64" ]; then
+          curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared
+        else
+          curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -o /usr/local/bin/cloudflared
+        fi
+        chmod +x /usr/local/bin/cloudflared
+      fi
+      echo -e "${BLUE}Launching tunnel to port 3000...${NC}"
+      pkill -f "cloudflared tunnel" || true
+      nohup cloudflared tunnel --url http://127.0.0.1:3000 > /tmp/cloudflared.log 2>&1 &
+      sleep 4
+      TUNNEL_URL="$(grep -o 'https://[-a-zA-Z0-9]*\.trycloudflare\.com' /tmp/cloudflared.log | tail -n 1 || echo '')"
+      if [ -n "$TUNNEL_URL" ]; then
+        echo -e "${GREEN}✓ Cloudflare Tunnel Active: ${BOLD}${TUNNEL_URL}${NC}"
+        if grep -q "APP_URL=" "$INSTALL_DIR/.env" 2>/dev/null; then
+          sed -i "s|APP_URL=.*|APP_URL=${TUNNEL_URL}|" "$INSTALL_DIR/.env"
+        else
+          echo "APP_URL=${TUNNEL_URL}" >> "$INSTALL_DIR/.env"
+        fi
+        curl -s -X POST -H "Content-Type: application/json" \
+          -d "{\"url\":\"${TUNNEL_URL}\"}" \
+          http://127.0.0.1:3000/api/config/set-url >/dev/null || true
+        echo -e "${GREEN}✓ Telegram WebApp URL and Bot Menu Button successfully updated!${NC}"
+        echo -e "You can now open the Mini App in Telegram without any ERR_CONNECTION errors."
+      else
+        echo -e "${YELLOW}Tunnel process started. Check URL with: cat /tmp/cloudflared.log${NC}"
+      fi
       read -rp "Press Enter to return to menu..." _
       show_menu
       ;;

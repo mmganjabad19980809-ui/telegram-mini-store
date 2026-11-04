@@ -1229,14 +1229,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#344054] mb-1">آدرس ولت تتر (USDT TRC20)</label>
+                  <label className="block font-bold text-[#344054] mb-1">نام بانک صادرکننده کارت (اختیاری)</label>
                   <input
-                    value={config.tetherWallet || 'TQn9Y2khsA9102jslka81029381kjahsd2910'}
-                    onChange={(e) => onUpdateConfig({ ...config, tetherWallet: e.target.value })}
-                    dir="ltr"
-                    className="w-full border border-[#e4e7ec] rounded-[14px] p-3 text-sm outline-none focus:border-[#5b5ce2] text-left font-mono"
+                    value={config.bankName || 'بانک ملت'}
+                    onChange={(e) => onUpdateConfig({ ...config, bankName: e.target.value })}
+                    placeholder="مثلاً: بانک ملت، سامان، ملی"
+                    className="w-full border border-[#e4e7ec] rounded-[14px] p-3 text-sm outline-none focus:border-[#5b5ce2]"
                   />
-                  <small className="text-gray-400">آدرس ولت تتر جهت پرداخت ارزی مشتریان در مینی‌اپ</small>
+                  <small className="text-gray-400">تنها روش پرداخت فعال کارت‌به‌کارت بانکی شتاب می‌باشد.</small>
                 </div>
 
                 {/* Live Dollar Rate Override Settings */}
@@ -1343,6 +1343,242 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <small className="text-gray-400">شناسه عددی اکانت تلگرام شما جهت ارسال سفارشات جدید</small>
                 </div>
 
+                {/* Bot Buttons & Interface Customization (ONLY Store & Support Buttons) */}
+                <div className="bg-[#f0f4ff] border-2 border-[#b8c6ff] rounded-2xl p-4 sm:p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <strong className="text-sm font-black text-[#1d2757] flex items-center gap-1.5">
+                        <span>🎛️</span>
+                        <span>مدیریت دکمه‌ها و ظاهر صفحه اصلی ربات تلگرام</span>
+                      </strong>
+                      <span className="text-xs text-[#4e5ba6] block mt-0.5">
+                        تنظیمات دقیق دکمه‌های شیشه‌ای بالا و دکمه‌های پایینی زیر فیلد چت تلگرام
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-black bg-[#5b5ce2] text-white px-2.5 py-1 rounded-full">
+                      ۲ دکمه استاندارد
+                    </span>
+                  </div>
+
+                  {/* Button 1: Store Mini App */}
+                  <div className="bg-white rounded-xl p-3.5 border border-[#d6defa] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-7 h-7 rounded-lg bg-[#eef2ff] text-[#5b5ce2] flex items-center justify-center font-bold text-xs">
+                          ۱
+                        </span>
+                        <div>
+                          <b className="text-xs text-[#101828] block">دکمه ورود به فروشگاه (Mini App)</b>
+                          <small className="text-[11px] text-gray-500">باز کردن فروشگاه در پنجره مینی‌اپ تلگرام</small>
+                        </div>
+                      </div>
+                      <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-[#344054]">
+                        <input
+                          type="checkbox"
+                          checked={config.botButtons?.storeButtonActive !== false}
+                          onChange={(e) => {
+                            const cur = config.botButtons || {
+                              storeButtonText: '🛍 ورود به فروشگاه (Mini App)',
+                              storeButtonActive: true,
+                              supportButtonText: '🎧 پشتیبانی',
+                              supportButtonActive: true,
+                              supportAction: 'miniapp',
+                              supportTelegramUrl: '',
+                              bannerImage: '',
+                              welcomeMessage: '',
+                            };
+                            onUpdateConfig({
+                              ...config,
+                              botButtons: { ...cur, storeButtonActive: e.target.checked },
+                            });
+                          }}
+                          className="rounded text-[#5b5ce2]"
+                        />
+                        <span>{config.botButtons?.storeButtonActive !== false ? 'فعال ✓' : 'غیرفعال'}</span>
+                      </label>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#344054] mb-1">متن دکمه فروشگاه:</label>
+                      <input
+                        value={config.botButtons?.storeButtonText ?? '🛍 ورود به فروشگاه (Mini App)'}
+                        onChange={(e) => {
+                          const cur = config.botButtons || {
+                            storeButtonText: '🛍 ورود به فروشگاه (Mini App)',
+                            storeButtonActive: true,
+                            supportButtonText: '🎧 پشتیبانی',
+                            supportButtonActive: true,
+                            supportAction: 'miniapp',
+                            supportTelegramUrl: '',
+                            bannerImage: '',
+                            welcomeMessage: '',
+                          };
+                          onUpdateConfig({
+                            ...config,
+                            botButtons: { ...cur, storeButtonText: e.target.value },
+                          });
+                        }}
+                        placeholder="مثلاً: 🛍 ورود به فروشگاه (Mini App)"
+                        className="w-full border border-[#e4e7ec] rounded-xl px-3 py-2 text-xs outline-none focus:border-[#5b5ce2]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Button 2: Support */}
+                  <div className="bg-white rounded-xl p-3.5 border border-[#d6defa] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-7 h-7 rounded-lg bg-[#eef2ff] text-[#5b5ce2] flex items-center justify-center font-bold text-xs">
+                          ۲
+                        </span>
+                        <div>
+                          <b className="text-xs text-[#101828] block">دکمه پشتیبانی و راهنما</b>
+                          <small className="text-[11px] text-gray-500">هدایت کاربر به سیستم تیکت مینی‌اپ یا چت مستقیم</small>
+                        </div>
+                      </div>
+                      <label className="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-[#344054]">
+                        <input
+                          type="checkbox"
+                          checked={config.botButtons?.supportButtonActive !== false}
+                          onChange={(e) => {
+                            const cur = config.botButtons || {
+                              storeButtonText: '🛍 ورود به فروشگاه (Mini App)',
+                              storeButtonActive: true,
+                              supportButtonText: '🎧 پشتیبانی',
+                              supportButtonActive: true,
+                              supportAction: 'miniapp',
+                              supportTelegramUrl: '',
+                              bannerImage: '',
+                              welcomeMessage: '',
+                            };
+                            onUpdateConfig({
+                              ...config,
+                              botButtons: { ...cur, supportButtonActive: e.target.checked },
+                            });
+                          }}
+                          className="rounded text-[#5b5ce2]"
+                        />
+                        <span>{config.botButtons?.supportButtonActive !== false ? 'فعال ✓' : 'غیرفعال'}</span>
+                      </label>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#344054] mb-1">متن دکمه پشتیبانی:</label>
+                      <input
+                        value={config.botButtons?.supportButtonText ?? '🎧 پشتیبانی'}
+                        onChange={(e) => {
+                          const cur = config.botButtons || {
+                            storeButtonText: '🛍 ورود به فروشگاه (Mini App)',
+                            storeButtonActive: true,
+                            supportButtonText: '🎧 پشتیبانی',
+                            supportButtonActive: true,
+                            supportAction: 'miniapp',
+                            supportTelegramUrl: '',
+                            bannerImage: '',
+                            welcomeMessage: '',
+                          };
+                          onUpdateConfig({
+                            ...config,
+                            botButtons: { ...cur, supportButtonText: e.target.value },
+                          });
+                        }}
+                        placeholder="مثلاً: 🎧 پشتیبانی"
+                        className="w-full border border-[#e4e7ec] rounded-xl px-3 py-2 text-xs outline-none focus:border-[#5b5ce2]"
+                      />
+                    </div>
+
+                    {/* Support Action Type */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
+                      <div>
+                        <label className="block text-[11px] font-bold text-[#344054] mb-1">نوع عملکرد پشتیبانی:</label>
+                        <select
+                          value={config.botButtons?.supportAction || 'miniapp'}
+                          onChange={(e) => {
+                            const cur = config.botButtons || {
+                              storeButtonText: '🛍 ورود به فروشگاه (Mini App)',
+                              storeButtonActive: true,
+                              supportButtonText: '🎧 پشتیبانی',
+                              supportButtonActive: true,
+                              supportAction: 'miniapp',
+                              supportTelegramUrl: '',
+                              bannerImage: '',
+                              welcomeMessage: '',
+                            };
+                            onUpdateConfig({
+                              ...config,
+                              botButtons: { ...cur, supportAction: e.target.value as any },
+                            });
+                          }}
+                          className="w-full border border-[#e4e7ec] rounded-xl p-2 text-xs outline-none focus:border-[#5b5ce2] bg-white"
+                        >
+                          <option value="miniapp">باز کردن تیکت داخل مینی‌اپ (Web App)</option>
+                          <option value="telegram">هدایت به آیدی تلگرام پشتیبان (Telegram Link)</option>
+                        </select>
+                      </div>
+
+                      {config.botButtons?.supportAction === 'telegram' && (
+                        <div>
+                          <label className="block text-[11px] font-bold text-[#344054] mb-1">لینک یا آیدی تلگرام پشتیبان:</label>
+                          <input
+                            value={config.botButtons?.supportTelegramUrl || ''}
+                            onChange={(e) => {
+                              const cur = config.botButtons || {
+                                storeButtonText: '🛍 ورود به فروشگاه (Mini App)',
+                                storeButtonActive: true,
+                                supportButtonText: '🎧 پشتیبانی',
+                                supportButtonActive: true,
+                                supportAction: 'miniapp',
+                                supportTelegramUrl: '',
+                                bannerImage: '',
+                                welcomeMessage: '',
+                              };
+                              onUpdateConfig({
+                                ...config,
+                                botButtons: { ...cur, supportTelegramUrl: e.target.value },
+                              });
+                            }}
+                            placeholder="https://t.me/your_admin_id"
+                            dir="ltr"
+                            className="w-full border border-[#e4e7ec] rounded-xl px-3 py-2 text-xs text-left outline-none focus:border-[#5b5ce2]"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Banner Photo for Bot Start */}
+                  <div className="bg-white rounded-xl p-3.5 border border-[#d6defa] space-y-2">
+                    <label className="block text-xs font-bold text-[#101828]">
+                      🖼 تصویر بنر خوشامدگویی ربات (Banner Photo URL):
+                    </label>
+                    <input
+                      value={config.botButtons?.bannerImage || ''}
+                      onChange={(e) => {
+                        const cur = config.botButtons || {
+                          storeButtonText: '🛍 ورود به فروشگاه (Mini App)',
+                          storeButtonActive: true,
+                          supportButtonText: '🎧 پشتیبانی',
+                          supportButtonActive: true,
+                          supportAction: 'miniapp',
+                          supportTelegramUrl: '',
+                          bannerImage: '',
+                          welcomeMessage: '',
+                        };
+                        onUpdateConfig({
+                          ...config,
+                          botButtons: { ...cur, bannerImage: e.target.value },
+                        });
+                      }}
+                      placeholder="https://example.com/banner.jpg (اختیاری - ارسال عکس همراه پیام /start)"
+                      dir="ltr"
+                      className="w-full border border-[#e4e7ec] rounded-xl px-3 py-2 text-xs text-left outline-none focus:border-[#5b5ce2]"
+                    />
+                    <small className="text-[11px] text-gray-400 block">
+                      در صورت قرار دادن لینک عکس، ربات عکس را همراه با متن و دکمه‌ها برای کاربر ارسال می‌کند.
+                    </small>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block font-bold text-[#344054] mb-1">پیام خوشامدگویی استارت ربات (/start)</label>
                   <textarea
@@ -1351,6 +1587,71 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     rows={3}
                     className="w-full border border-[#e4e7ec] rounded-[14px] p-3 text-sm outline-none focus:border-[#5b5ce2]"
                   />
+                </div>
+
+                {/* Public WebApp URL Controller - Fixes duck/connection refused screen */}
+                <div className="bg-[#fff9f0] border-2 border-[#fedf89] rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <strong className="text-sm font-black text-[#b54708] flex items-center gap-1.5">
+                        <span>🌐</span>
+                        <span>آدرس عمومی وب‌اپ و مینی‌اپ در تلگرام (Public WebApp HTTPS URL)</span>
+                      </strong>
+                      <span className="text-xs text-[#7a2e0e] block mt-0.5">
+                        این آدرس باید حتماً با <b>https://</b> شروع شود تا مینی‌اپ روی گوشی بدون خطای ERR_CONNECTION باز شود.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex gap-2 mb-2">
+                      <input
+                        value={config.publicAppUrl || ''}
+                        onChange={(e) => onUpdateConfig({ ...config, publicAppUrl: e.target.value })}
+                        placeholder="https://shop.yourdomain.com یا لینک Cloudflare Tunnel"
+                        dir="ltr"
+                        className="flex-1 border border-[#e4e7ec] rounded-xl px-3 py-2.5 text-xs text-left font-mono outline-none focus:border-[#5b5ce2] bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentOrigin = window.location.origin;
+                          onUpdateConfig({ ...config, publicAppUrl: currentOrigin });
+                          toast(`آدرس فعلی مرورگر (${currentOrigin}) انتخاب شد`);
+                        }}
+                        className="px-3 py-2 bg-white border border-[#fedf89] hover:bg-[#fff6e0] text-[#b54708] rounded-xl text-xs font-bold transition whitespace-nowrap shadow-xs"
+                      >
+                        ⚡ استفاده از آدرس فعلی
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const targetUrl = config.publicAppUrl || window.location.origin;
+                          try {
+                            const res = await fetch('/api/config/set-url', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ url: targetUrl, botToken: config.botToken }),
+                            });
+                            const data = await res.json();
+                            if (data.ok) {
+                              toast('آدرس مینی‌اپ با موفقیت در سرور و دکمه‌های ربات تلگرام آپدیت شد! ✓');
+                            } else {
+                              toast(`خطا در ثبت آدرس: ${data.error || 'ناشناخته'}`);
+                            }
+                          } catch (err: any) {
+                            toast(`خطا: ${err.message}`);
+                          }
+                        }}
+                        className="px-4 py-2 bg-[#b54708] hover:bg-[#93370d] text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+                      >
+                        <span>✓ بروزرسانی دکمه‌های منوی تلگرام با این آدرس</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Real Bot Service Controller */}

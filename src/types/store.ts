@@ -1,3 +1,14 @@
+export interface BotButtonConfig {
+  storeButtonText: string;
+  storeButtonActive: boolean;
+  supportButtonText: string;
+  supportButtonActive: boolean;
+  supportAction: 'miniapp' | 'telegram';
+  supportTelegramUrl?: string;
+  bannerImage?: string;
+  welcomeMessage?: string;
+}
+
 export interface StoreConfig {
   storeName: string;
   storeSubtitle: string;
@@ -15,7 +26,7 @@ export interface StoreConfig {
   cardNumber: string;
   primaryColor: string;
   secondaryColor: string;
-  starsPaymentEnabled: boolean;
+  starsPaymentEnabled?: boolean;
   cardPaymentEnabled: boolean;
   adminUsername?: string;
   maintenanceMode: boolean;
@@ -29,9 +40,10 @@ export interface StoreConfig {
   usdRate?: number;
   usdtRate?: number;
   customDollarRateActive?: boolean;
-  tetherWallet?: string;
   shebaNumber?: string;
   bankName?: string;
+  publicAppUrl?: string;
+  botButtons?: BotButtonConfig;
 }
 
 export interface CustomerProfile {
@@ -42,8 +54,8 @@ export interface CustomerProfile {
   bio: string;
   photoUrl?: string;
   vipTier: 'عادی' | 'نقره‌ای' | 'طلایی' | 'VIP';
-  walletBalanceToman: number;
-  walletBalanceUsdt: number;
+  orderCount: number;
+  accountStatus: 'فعال' | 'ویژه' | 'احراز شده';
   joinedDate: string;
 }
 
